@@ -355,7 +355,7 @@ function renderMatches(other) {
   if (!give.length && !get.length) {
     html += `<div class="empty">No encontramos intercambios posibles con ${escapeHtml(who)} por ahora. 🙈<br>Puede que necesiten actualizar sus listas.</div>`;
     root.innerHTML = html;
-    switchTab('trade');
+    showMatches();
     return;
   }
 
@@ -380,8 +380,13 @@ function renderMatches(other) {
   html += `</div>`;
 
   root.innerHTML = html;
-  switchTab('trade');
+  showMatches();
   toast(`✅ ${give.length + get.length} coincidencias con ${who}`, true);
+}
+
+function showMatches() {
+  switchTab('trade');
+  setTimeout(() => $('#match-root').scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
 }
 
 function escapeHtml(s) {
@@ -452,6 +457,101 @@ function downloadFile(name, content, type) {
 async function shareText(text) {
   if (navigator.share) { try { await navigator.share({ text }); return; } catch {} }
   copyText(text);
+}
+
+/* ---------- Comunidad (modo en línea: requiere servidor + BD) ---------- */
+const ONLINE = location.protocol === 'http:' || location.protocol === 'https:';
+const PUBLISH_KEY = 'fch:v1:published';
+
+async function apiHealth() {
+  try { const r = await fetch('api/health', { cache: 'no-store' }); return r.ok; }
+  catch { return false; }
+}
+
+async function publishMine() {
+  if (!profile.name && !profile.contact) {
+    toast('Cargá tu nombre o contacto antes de publicar');
+    return;
+  }
+  const payload = { name: profile.name || '', contact: profile.contact || '', album: ALBUM_NAME, data: counts, stats: stats() };
+  const pub = load(PUBLISH_KEY, null);
+  try {
+    let res;
+    if (pub && pub.id) {
+      res = await fetch('api/collections/' + pub.id, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, editToken: pub.editToken }),
+      });
+      if (res.status === 404) { // fue borrada: republicar
+        res = await fetch('api/collections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      }
+    } else {
+      res = await fetch('api/collections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    }
+    if (!res.ok) throw new Error('bad');
+    const body = await res.json();
+    if (body.id) save(PUBLISH_KEY, { id: body.id, editToken: body.editToken || (pub && pub.editToken) });
+    $('#unpublish-btn').style.display = '';
+    toast('📢 Tu lista está publicada', true);
+    loadCommunity();
+  } catch { toast('No se pudo publicar 😕'); }
+}
+
+async function unpublishMine() {
+  const pub = load(PUBLISH_KEY, null);
+  if (!pub) return;
+  try {
+    await fetch('api/collections/' + pub.id, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editToken: pub.editToken }),
+    });
+    localStorage.removeItem(PUBLISH_KEY);
+    $('#unpublish-btn').style.display = 'none';
+    toast('Publicación eliminada', true);
+    loadCommunity();
+  } catch { toast('No se pudo quitar'); }
+}
+
+async function loadCommunity() {
+  const listEl = $('#community-list');
+  listEl.innerHTML = '<div class="empty">Cargando…</div>';
+  let rows;
+  try { rows = await (await fetch('api/collections', { cache: 'no-store' })).json(); }
+  catch { listEl.innerHTML = '<div class="empty">No se pudo cargar la comunidad.</div>'; return; }
+
+  const pub = load(PUBLISH_KEY, null);
+  const others = rows.filter(r => !(pub && r.id === pub.id));
+  if (!others.length) {
+    listEl.innerHTML = '<div class="empty">Todavía no hay otras listas publicadas.<br>¡Publicá la tuya y avisá a tus conocidos! 🙌</div>';
+    return;
+  }
+
+  let withMatches = 0;
+  listEl.innerHTML = others.map(r => {
+    const other = { name: r.name, contact: r.contact, album: r.album, counts: r.data };
+    const { give, get } = computeTrades(other);
+    const n = give.length + get.length;
+    if (n) withMatches++;
+    const tag = n
+      ? `<span class="tag get">${n} cambios</span>`
+      : `<span class="tag" style="background:var(--card-2);color:var(--muted)">sin cambios</span>`;
+    return `<div class="match-block ${n ? 'get' : ''}" style="cursor:pointer" data-id="${r.id}">
+      <h3>👤 ${escapeHtml(r.name || 'Sin nombre')} ${tag}</h3>
+      <div class="ct" style="color:var(--muted);font-size:.8rem">
+        ${r.contact ? escapeHtml(r.contact) + ' · ' : ''}${escapeHtml(r.album || '')}
+      </div>
+      <div class="ct" style="color:var(--muted);font-size:.75rem;margin-top:4px">Tocá para ver los intercambios →</div>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('[data-id]').forEach(el => {
+    el.addEventListener('click', () => {
+      const row = others.find(r => r.id === el.dataset.id);
+      renderMatches({ name: row.name, contact: row.contact, album: row.album, counts: row.data });
+    });
+  });
+
+  if (withMatches) toast(`🔔 ${withMatches} persona(s) con figus para vos`, true);
 }
 
 /* ---------- Navegación por tabs ---------- */
@@ -554,6 +654,19 @@ function init() {
     if (!parsed) { toast('No pude leer esa lista o enlace 🤔'); return; }
     renderMatches(parsed);
   });
+
+  // Comunidad (solo si hay servidor detrás)
+  if (ONLINE) {
+    $('#publish-btn').addEventListener('click', publishMine);
+    $('#refresh-community').addEventListener('click', loadCommunity);
+    $('#unpublish-btn').addEventListener('click', unpublishMine);
+    apiHealth().then(ok => {
+      if (!ok) return;
+      $('#community-panel').style.display = '';
+      if (load(PUBLISH_KEY, null)) $('#unpublish-btn').style.display = '';
+      loadCommunity();
+    });
+  }
 
   checkIncomingUrl();
 }

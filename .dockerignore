@@ -1,0 +1,7 @@
+node_modules
+server/node_modules
+.git
+*.png
+_shot.js
+.env
+README.md
