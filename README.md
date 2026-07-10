@@ -101,6 +101,22 @@ Cómo exponerla con cloudflared (dos opciones):
 Producción usa `docker compose -f docker-compose.yml up` (lo hace el script), que
 **ignora** `docker-compose.override.yml`, por eso no se publica ningún puerto.
 
+`prod.sh` despliega desde la rama **`main`** (se puede cambiar con la variable de
+entorno `DEPLOY_BRANCH`): hace `git fetch`, se para en esa rama y hace
+`git pull --ff-only`.
+
+### 4) Deploy automático con GitHub Actions
+El workflow `.github/workflows/deploy.yml` corre en cada push a `main` (o a mano
+con *Run workflow*) sobre un **runner self-hosted** en el propio servidor, y
+ejecuta `./prod.sh` en el directorio del repo.
+
+- Necesita un **self-hosted runner** configurado en el repo, con Docker.
+- Configurá la variable `DEPLOY_DIR` en *Settings → Secrets and variables →
+  Actions → Variables* con la ruta del checkout en el server (por defecto
+  `$HOME/proyectos/sanga/figus-change-hub`).
+- Un solo deploy a la vez (`concurrency: deploy-main`), sin cancelar el que esté
+  en curso.
+
 Variables (en `.env`):
 
 | Variable | Default | Para qué |

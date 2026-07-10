@@ -16,8 +16,12 @@ cd "$(dirname "$0")"
 ENV_FILE=".env"
 
 # --- 1) Actualizar el código -------------------------------------------------
-echo "==> Actualizando el código (git pull)…"
-git pull --ff-only
+# Rama de despliegue (por defecto main). Se puede sobreescribir con DEPLOY_BRANCH.
+BRANCH="${DEPLOY_BRANCH:-main}"
+echo "==> Actualizando el código (rama ${BRANCH})…"
+git fetch --prune origin
+git checkout "$BRANCH"
+git pull --ff-only origin "$BRANCH"
 
 # --- 2) Crear .env con contraseña segura si no existe ------------------------
 gen_secret() {
