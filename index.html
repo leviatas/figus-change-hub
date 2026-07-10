@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1420" />
+  <title>Figus Change Hub · Usa Mex Can</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <span class="logo">⚽</span>
+        <div>
+          <h1>Figus Change Hub</h1>
+          <small id="album-name">Álbum</small>
+        </div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+        <div class="progress-meta">
+          <span><b id="prog-have">0</b> pegadas de <b id="prog-total">0</b></span>
+          <span>Faltan <b id="prog-need">0</b> · Repes <b id="prog-repe">0</b></span>
+        </div>
+      </div>
+
+      <nav class="tabs">
+        <div class="tab active" data-tab="album">📖 Mi álbum</div>
+        <div class="tab" data-tab="export">📤 Exportar</div>
+        <div class="tab" data-tab="trade">🤝 Intercambiar</div>
+      </nav>
+    </header>
+
+    <div id="notice"></div>
+
+    <!-- ALBUM -->
+    <section id="tab-album" class="tab-content">
+      <div class="legend">
+        <span><i class="dot missing"></i> Me falta</span>
+        <span><i class="dot have"></i> La tengo</span>
+        <span><i class="dot repe"></i> Repetida (tocá de nuevo para sumar)</span>
+      </div>
+      <div class="toolbar">
+        <div class="search"><input id="search" type="search" placeholder="Buscar selección (ARG, BRA, FWC…)" /></div>
+      </div>
+      <div class="toolbar">
+        <div class="filters">
+          <div class="chip-filter active" data-filter="all">Todas</div>
+          <div class="chip-filter" data-filter="missing">Me faltan</div>
+          <div class="chip-filter" data-filter="repe">Repetidas</div>
+          <div class="chip-filter" data-filter="have">Las que tengo</div>
+        </div>
+        <button class="btn ghost" id="collapse-all" style="margin-left:auto">Colapsar todo</button>
+      </div>
+      <div id="album-root"></div>
+    </section>
+
+    <!-- EXPORT -->
+    <section id="tab-export" class="tab-content hidden">
+      <div class="panel">
+        <h2>Exportá tu lista</h2>
+        <p class="hint">Elegí qué querés compartir y cómo. Podés copiar el texto, bajarlo como archivo o mandarlo directo por WhatsApp / lo que uses.</p>
+        <div class="seg" id="export-seg">
+          <div class="seg-btn active" data-kind="faltan">Me faltan</div>
+          <div class="seg-btn" data-kind="repetidas">Repetidas</div>
+          <div class="seg-btn" data-kind="ambas">Ambas</div>
+        </div>
+        <pre class="export" id="export-text"></pre>
+        <div class="btn-row">
+          <button class="btn primary" id="copy-btn">📋 Copiar</button>
+          <button class="btn" id="download-btn">⬇️ Descargar .txt</button>
+          <button class="btn" id="share-text-btn">📱 Compartir</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Compartir por enlace</h2>
+        <p class="hint">Genera un enlace con tu colección y tus datos de contacto. Quien lo abra puede comparar su álbum con el tuyo y ver al instante qué se pueden cambiar. No se usa ningún servidor: todo viaja dentro del enlace.</p>
+        <div class="btn-row">
+          <button class="btn primary" id="gen-link-btn">🔗 Generar y copiar enlace</button>
+        </div>
+        <div class="field" style="margin-top:12px; display:none" id="link-field-wrap">
+          <label>Tu enlace para compartir</label>
+          <textarea id="link-out" readonly style="min-height:80px"></textarea>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Respaldo</h2>
+        <p class="hint">Guardá o restaurá tu álbum como archivo (por si cambiás de teléfono o borrás los datos del navegador).</p>
+        <div class="btn-row">
+          <button class="btn" id="backup-btn">Descargar respaldo</button>
+          <button class="btn" id="restore-btn">Restaurar respaldo</button>
+          <input type="file" id="restore-file" accept="application/json" class="hidden" />
+        </div>
+      </div>
+    </section>
+
+    <!-- TRADE -->
+    <section id="tab-trade" class="tab-content hidden">
+      <div class="panel">
+        <h2>Tus datos</h2>
+        <p class="hint">Cargá tu nombre y un contacto para que quien tenga figuritas para vos sepa cómo avisarte. Es opcional y solo se incluye si generás un enlace para compartir.</p>
+        <div class="field">
+          <label>Tu nombre o apodo</label>
+          <input id="profile-name" type="text" placeholder="Ej: Edu" />
+        </div>
+        <div class="field">
+          <label>Contacto (WhatsApp, Telegram, mail… lo que quieras)</label>
+          <input id="profile-contact" type="text" placeholder="Ej: @edu · o un teléfono · o un mail" />
+        </div>
+        <button class="btn primary" id="save-profile">Guardar</button>
+      </div>
+
+      <div class="panel">
+        <h2>Comparar con otra persona</h2>
+        <p class="hint">Pegá el enlace o el texto que te pasó la otra persona (su lista de faltantes/repetidas o su enlace del hub). Te mostramos exactamente qué figuritas se pueden cambiar entre los dos.</p>
+        <div class="field">
+          <textarea id="compare-in" placeholder="Pegá acá su enlace o su lista…"></textarea>
+        </div>
+        <button class="btn primary block" id="compare-btn">🔍 Buscar intercambios</button>
+      </div>
+
+      <div id="match-root"></div>
+    </section>
+
+    <footer class="foot">
+      Hecho para cambiar figus. Tus datos se guardan solo en este dispositivo.
+    </footer>
+  </div>
+
+  <div id="toast-wrap"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
