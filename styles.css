@@ -163,6 +163,19 @@ pre.export {
 
 .empty { text-align: center; color: var(--muted); padding: 30px 10px; font-size: .9rem; }
 
+.community-summary {
+  background: linear-gradient(135deg,#132a1e,#14233f); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: .9rem; line-height: 1.4;
+}
+.community-summary b { color: #b6f3c6; }
+.community-summary.muted { background: var(--bg-soft); color: var(--muted); }
+.community-summary.muted b { color: var(--text); }
+.swap-headline {
+  background: linear-gradient(135deg,#16233d,#1a2f22); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: .95rem;
+}
+.swap-headline b { color: #b6f3c6; }
+
 /* Toast */
 #toast-wrap { position: fixed; left: 0; right: 0; bottom: 84px; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 60; pointer-events: none; padding: 0 14px; }
 .toast {

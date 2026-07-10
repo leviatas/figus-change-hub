@@ -352,6 +352,12 @@ function renderMatches(other) {
     </div>`;
   }
 
+  const swaps = Math.min(give.length, get.length);
+  if (give.length || get.length) {
+    html += `<div class="swap-headline">🔄 Podés cambiar <b>${swaps}</b> figurita${swaps === 1 ? '' : 's'} con ${escapeHtml(who)}` +
+      `${swaps < Math.max(give.length, get.length) ? ` <span style="color:var(--muted)">(cambio parejo, 1 por 1)</span>` : ''}.</div>`;
+  }
+
   if (!give.length && !get.length) {
     html += `<div class="empty">No encontramos intercambios posibles con ${escapeHtml(who)} por ahora. 🙈<br>Puede que necesiten actualizar sus listas.</div>`;
     root.innerHTML = html;
@@ -526,32 +532,50 @@ async function loadCommunity() {
     return;
   }
 
-  let withMatches = 0;
-  listEl.innerHTML = others.map(r => {
+  // Calculamos automáticamente el potencial de cambio con cada persona.
+  // swaps = min(le das, te da) → cantidad de cambios figu-por-figu posibles.
+  const ranked = others.map(r => {
     const other = { name: r.name, contact: r.contact, album: r.album, counts: r.data };
     const { give, get } = computeTrades(other);
-    const n = give.length + get.length;
-    if (n) withMatches++;
-    const tag = n
-      ? `<span class="tag get">${n} cambios</span>`
-      : `<span class="tag" style="background:var(--card-2);color:var(--muted)">sin cambios</span>`;
-    return `<div class="match-block ${n ? 'get' : ''}" style="cursor:pointer" data-id="${r.id}">
-      <h3>👤 ${escapeHtml(r.name || 'Sin nombre')} ${tag}</h3>
-      <div class="ct" style="color:var(--muted);font-size:.8rem">
-        ${r.contact ? escapeHtml(r.contact) + ' · ' : ''}${escapeHtml(r.album || '')}
+    return { r, other, give: give.length, get: get.length, swaps: Math.min(give.length, get.length) };
+  }).sort((a, b) =>
+    b.swaps - a.swaps || (b.give + b.get) - (a.give + a.get) || a.r.name.localeCompare(b.r.name)
+  );
+
+  const withSwaps = ranked.filter(x => x.swaps > 0);
+  const totalSwaps = withSwaps.reduce((n, x) => n + x.swaps, 0);
+
+  const summary = withSwaps.length
+    ? `<div class="community-summary">🔄 Podés hacer <b>${totalSwaps}</b> cambio(s) con <b>${withSwaps.length}</b> persona(s).</div>`
+    : `<div class="community-summary muted">Por ahora nadie tiene un cambio figu-por-figu con vos. Igual mirá abajo por si te sirve algo suelto.</div>`;
+
+  listEl.innerHTML = summary + ranked.map(({ r, give, get, swaps }) => {
+    const anything = give + get;
+    const badge = swaps > 0
+      ? `<span class="tag get">🔄 ${swaps} cambio${swaps > 1 ? 's' : ''}</span>`
+      : (anything
+        ? `<span class="tag" style="background:var(--card-2);color:var(--muted)">sin cambio parejo</span>`
+        : `<span class="tag" style="background:var(--card-2);color:var(--muted)">sin coincidencias</span>`);
+    return `<div class="match-block ${swaps > 0 ? 'get' : ''}" style="cursor:pointer" data-id="${r.id}">
+      <h3>👤 ${escapeHtml(r.name || 'Sin nombre')} ${badge}</h3>
+      <div class="ct" style="font-size:.82rem;margin-bottom:4px">
+        📤 Le das <b>${give}</b> que necesita · 📥 Te da <b>${get}</b> que te falta
       </div>
-      <div class="ct" style="color:var(--muted);font-size:.75rem;margin-top:4px">Tocá para ver los intercambios →</div>
+      ${r.contact ? `<div class="ct" style="font-size:.82rem">📇 ${linkifyContact(r.contact)}</div>` : '<div class="ct" style="font-size:.78rem;color:var(--muted)">Sin contacto cargado</div>'}
+      <div class="ct" style="color:var(--muted);font-size:.75rem;margin-top:6px">Tocá para ver qué figuritas son →</div>
     </div>`;
   }).join('');
 
   listEl.querySelectorAll('[data-id]').forEach(el => {
-    el.addEventListener('click', () => {
-      const row = others.find(r => r.id === el.dataset.id);
-      renderMatches({ name: row.name, contact: row.contact, album: row.album, counts: row.data });
+    // No dispares el detalle si tocaron el link de contacto
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return;
+      const item = ranked.find(x => x.r.id === el.dataset.id);
+      renderMatches(item.other);
     });
   });
 
-  if (withMatches) toast(`🔔 ${withMatches} persona(s) con figus para vos`, true);
+  if (totalSwaps) toast(`🔔 ${totalSwaps} cambio(s) posibles con ${withSwaps.length} persona(s)`, true);
 }
 
 /* ---------- Navegación por tabs ---------- */
