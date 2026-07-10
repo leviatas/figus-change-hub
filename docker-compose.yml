@@ -1,3 +1,13 @@
+# Configuración base (apta para producción).
+# NO publica puertos al host: la app queda accesible solo dentro de la red
+# interna de Docker (servicio "web" en el puerto 3000). Se expone públicamente
+# mediante Cloudflare Tunnel (cloudflared), no abriendo puertos.
+#
+# Desarrollo local: `docker compose up` aplica además docker-compose.override.yml,
+# que publica el puerto para poder abrir http://localhost:8080.
+#
+# Producción: `docker compose -f docker-compose.yml up -d` (lo hace prod.sh),
+# que ignora el override y por lo tanto no publica ningún puerto.
 services:
   db:
     image: postgres:16-alpine
@@ -13,9 +23,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-    # Descomentá si querés conectarte a la BD desde tu máquina:
-    # ports:
-    #   - "5432:5432"
 
   web:
     build: .
@@ -23,11 +30,23 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-figus}:${POSTGRES_PASSWORD:-figus}@db:5432/${POSTGRES_DB:-figus}
       PORT: 3000
+    expose:
+      - "3000"
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "${WEB_PORT:-8080}:3000"
+
+  # Túnel de Cloudflare (opcional). Se activa solo con el perfil "tunnel" y un
+  # TUNNEL_TOKEN configurado en .env. Conecta el túnel directo a web:3000 por la
+  # red interna, sin publicar puertos. En el panel de Cloudflare, apuntá el
+  # hostname público del túnel a http://web:3000.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:-}
+    depends_on:
+      - web
 
 volumes:
   db-data:

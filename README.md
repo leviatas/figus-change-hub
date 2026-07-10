@@ -59,26 +59,57 @@ Levanta la página **y** una base Postgres con un solo comando. Esto habilita el
 muro de **Comunidad**: cada persona publica su lista y las demás la ven y
 comparan al instante.
 
+**Desarrollo local** (publica el puerto para abrir en tu máquina):
+
 ```bash
 cp .env.example .env      # opcional: ajustá puerto y contraseña
 docker compose up -d --build
 ```
 
 Luego abrí **http://localhost:8080** (o el `WEB_PORT` que hayas puesto).
+`docker compose up` aplica automáticamente `docker-compose.override.yml`, que es
+el que publica el puerto (solo para desarrollo).
 
 - `web`: servidor Node/Express que sirve el sitio y expone la API (`/api/...`).
 - `db`: Postgres 16, con los datos persistidos en un volumen (`db-data`).
 
 Para apagarlo: `docker compose down` (agregá `-v` si querés borrar también la BD).
 
+### 3) Producción con `./prod.sh` (detrás de Cloudflare Tunnel)
+Para el servidor público usá el script `prod.sh`, que:
+
+1. Actualiza el código (`git pull`).
+2. Crea `.env` con una **contraseña de BD segura** si todavía no existe (no pisa
+   una existente).
+3. Levanta la app **sin publicar ningún puerto** — queda solo en la red interna
+   de Docker. La idea es exponerla públicamente por **Cloudflare Tunnel**, no
+   abriendo puertos al mundo.
+
+```bash
+./prod.sh
+```
+
+Cómo exponerla con cloudflared (dos opciones):
+
+- **Integrado**: pegá el token de tu tunnel en `.env` como `TUNNEL_TOKEN=...` y
+  volvé a correr `./prod.sh`. Levanta también un contenedor `cloudflared` que
+  conecta el túnel directo a `web:3000` por la red interna. En el panel de
+  Cloudflare, apuntá el hostname público del túnel a `http://web:3000`.
+- **Externo**: si ya tenés cloudflared corriendo aparte, conectalo a la red de
+  Docker de este stack y apuntalo a `http://web:3000`.
+
+Producción usa `docker compose -f docker-compose.yml up` (lo hace el script), que
+**ignora** `docker-compose.override.yml`, por eso no se publica ningún puerto.
+
 Variables (en `.env`):
 
 | Variable | Default | Para qué |
 |---|---|---|
-| `WEB_PORT` | `8080` | Puerto donde abrís la web |
+| `WEB_PORT` | `8080` | Puerto local en desarrollo (en producción no se publica) |
 | `POSTGRES_USER` | `figus` | Usuario de la BD |
-| `POSTGRES_PASSWORD` | `figus` | Contraseña de la BD |
+| `POSTGRES_PASSWORD` | `figus` | Contraseña de la BD (en producción la genera `prod.sh`) |
 | `POSTGRES_DB` | `figus` | Nombre de la BD |
+| `TUNNEL_TOKEN` | — | Token del Cloudflare Tunnel; si está, `prod.sh` levanta `cloudflared` |
 
 #### API
 - `GET  /api/health` — chequeo.
@@ -118,4 +149,8 @@ simplemente no aparece y el resto sigue funcionando.
 - `data.js` — definición del álbum (secciones, selecciones, emojis, rangos).
 - `app.js` — lógica del cliente (estado, export, enlaces, comparación, comunidad).
 - `server/` — backend Node/Express + Postgres (API y servido del sitio).
-- `Dockerfile`, `docker-compose.yml`, `.env.example` — para levantar todo con Docker.
+- `Dockerfile` — imagen del servicio web.
+- `docker-compose.yml` — stack base, apto para producción (sin puertos publicados).
+- `docker-compose.override.yml` — extras de desarrollo (publica el puerto local).
+- `prod.sh` — despliegue de producción (git pull, `.env` seguro, sin puertos, cloudflared opcional).
+- `.env.example` — variables de configuración.

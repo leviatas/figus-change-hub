@@ -1,0 +1,10 @@
+# Overrides SOLO para desarrollo local.
+# `docker compose up` (sin -f) carga este archivo automáticamente y publica el
+# puerto para abrir la app en http://localhost:${WEB_PORT:-8080}.
+#
+# En producción, prod.sh usa `docker compose -f docker-compose.yml up`, que NO
+# carga este archivo, así que no se publica ningún puerto (se expone por cloudflared).
+services:
+  web:
+    ports:
+      - "${WEB_PORT:-8080}:3000"
