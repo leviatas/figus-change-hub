@@ -542,22 +542,20 @@ async function loadCommunity() {
     b.swaps - a.swaps || (b.give + b.get) - (a.give + a.get) || a.r.name.localeCompare(b.r.name)
   );
 
+  // Mostramos SOLO personas con las que hay un intercambio real (le das algo y te da algo)
   const withSwaps = ranked.filter(x => x.swaps > 0);
   const totalSwaps = withSwaps.reduce((n, x) => n + x.swaps, 0);
 
-  const summary = withSwaps.length
-    ? `<div class="community-summary">🔄 Podés hacer <b>${totalSwaps}</b> cambio(s) con <b>${withSwaps.length}</b> persona(s).</div>`
-    : `<div class="community-summary muted">Por ahora nadie tiene un cambio figu-por-figu con vos. Igual mirá abajo por si te sirve algo suelto.</div>`;
+  if (!withSwaps.length) {
+    listEl.innerHTML = `<div class="empty">Por ahora no hay nadie con quien puedas hacer un cambio figu-por-figu.<br>Probá más tarde o avisá a más gente para que publiquen su lista. 🙌</div>`;
+    return;
+  }
 
-  listEl.innerHTML = summary + ranked.map(({ r, give, get, swaps }) => {
-    const anything = give + get;
-    const badge = swaps > 0
-      ? `<span class="tag get">🔄 ${swaps} cambio${swaps > 1 ? 's' : ''}</span>`
-      : (anything
-        ? `<span class="tag" style="background:var(--card-2);color:var(--muted)">sin cambio parejo</span>`
-        : `<span class="tag" style="background:var(--card-2);color:var(--muted)">sin coincidencias</span>`);
-    return `<div class="match-block ${swaps > 0 ? 'get' : ''}" style="cursor:pointer" data-id="${r.id}">
-      <h3>👤 ${escapeHtml(r.name || 'Sin nombre')} ${badge}</h3>
+  const summary = `<div class="community-summary">🔄 Podés hacer <b>${totalSwaps}</b> cambio(s) con <b>${withSwaps.length}</b> persona(s).</div>`;
+
+  listEl.innerHTML = summary + withSwaps.map(({ r, give, get, swaps }) => {
+    return `<div class="match-block get" style="cursor:pointer" data-id="${r.id}">
+      <h3>👤 ${escapeHtml(r.name || 'Sin nombre')} <span class="tag get">🔄 ${swaps} cambio${swaps > 1 ? 's' : ''}</span></h3>
       <div class="ct" style="font-size:.82rem;margin-bottom:4px">
         📤 Le das <b>${give}</b> que necesita · 📥 Te da <b>${get}</b> que te falta
       </div>
