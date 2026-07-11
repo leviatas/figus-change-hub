@@ -1,5 +1,9 @@
 node_modules/
 *.png
+# íconos de la PWA (sí versionados)
+!icon-192.png
+!icon-512.png
+!apple-touch-icon.png
 _shot.js
 .DS_Store
 .env

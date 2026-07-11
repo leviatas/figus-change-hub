@@ -5,8 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f1420" />
   <title>Figus Change Hub · Usa Mex Can</title>
+  <meta name="description" content="Llevá tu álbum de figuritas Usa Mex Can 26, marcá lo que tenés y lo que te falta, e intercambiá con otras personas." />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
+  <!-- PWA: instalable en Android / iOS -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Figus Hub" />
 </head>
 <body>
   <div class="app">
@@ -29,6 +37,7 @@
 
       <nav class="tabs">
         <div class="tab active" data-tab="album">📖 Mi álbum</div>
+        <div class="tab" data-tab="import">📥 Importar</div>
         <div class="tab" data-tab="export">📤 Exportar</div>
         <div class="tab" data-tab="trade">🤝 Intercambiar</div>
       </nav>
@@ -56,6 +65,48 @@
         <button class="btn ghost" id="collapse-all" style="margin-left:auto">Colapsar todo</button>
       </div>
       <div id="album-root"></div>
+    </section>
+
+    <!-- IMPORT -->
+    <section id="tab-import" class="tab-content hidden">
+      <div class="panel">
+        <h2>Importá tu lista</h2>
+        <p class="hint">Pegá acá <b>tu propio</b> enlace del hub, o tu lista de <b>Me faltan / Repetidas</b> (el mismo texto que genera Exportar). La cargamos en tu álbum así no tenés que marcar todo a mano.</p>
+        <div class="field">
+          <textarea id="import-in" placeholder="Pegá acá tu enlace o tu lista de figuritas…"></textarea>
+        </div>
+        <div class="seg" id="import-mode-seg">
+          <div class="seg-btn active" data-mode="merge">Combinar con lo mío</div>
+          <div class="seg-btn" data-mode="replace">Reemplazar todo</div>
+        </div>
+        <p class="hint" id="import-mode-hint">Combina lo que pegás con lo que ya tenías marcado, sin borrar el resto.</p>
+        <div class="btn-row">
+          <button class="btn" id="import-preview-btn">👁️ Vista previa</button>
+          <button class="btn primary" id="import-apply-btn">📥 Importar a mi álbum</button>
+        </div>
+        <div id="import-preview"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Desde un archivo</h2>
+        <p class="hint">Si guardaste un respaldo <code>.json</code> o un <code>.txt</code> exportado, importalo directamente.</p>
+        <div class="btn-row">
+          <button class="btn" id="import-file-btn">📂 Elegir archivo</button>
+          <input type="file" id="import-file" accept="application/json,text/plain,.json,.txt" class="hidden" />
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Instalar la app 📲</h2>
+        <p class="hint">Podés instalar Figus Change Hub como una app en tu teléfono (Android o iPhone) para abrirla desde el ícono y usarla sin conexión.</p>
+        <div class="btn-row" id="install-row">
+          <button class="btn primary" id="install-btn" style="display:none">⬇️ Instalar app</button>
+        </div>
+        <p class="hint" id="install-help">
+          <b>Android (Chrome):</b> menú ⋮ → <i>Instalar app</i> / <i>Agregar a la pantalla principal</i>.<br>
+          <b>iPhone (Safari):</b> botón Compartir → <i>Agregar a inicio</i>.
+        </p>
+      </div>
     </section>
 
     <!-- EXPORT -->
