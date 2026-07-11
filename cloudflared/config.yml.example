@@ -1,0 +1,30 @@
+# Configuración del endpoint del túnel de Cloudflare (modo con archivo de config).
+# El tráfico del hostname público entra por el túnel y se enruta al servicio
+# interno "web" en el puerto 3000, SIN abrir puertos en el host.
+#
+# --- Cómo dejarlo andando (una sola vez) ---
+# 1) Instalá cloudflared en tu máquina y autenticate:
+#      cloudflared tunnel login
+# 2) Creá el túnel (genera un UUID y un archivo <UUID>.json con las credenciales):
+#      cloudflared tunnel create figus-change-hub
+# 3) Copiá este archivo a  cloudflared/config.yml  y completá:
+#      - <TUNNEL_UUID> con el UUID que te devolvió el paso 2
+#      - el hostname con tu dominio real
+#    Y copiá el archivo <UUID>.json dentro de la carpeta  cloudflared/.
+# 4) Apuntá el DNS del hostname al túnel:
+#      cloudflared tunnel route dns figus-change-hub figus.tudominio.com
+# 5) Levantá todo:
+#      ./prod.sh
+#    (o:  docker compose -f docker-compose.yml --profile tunnel up -d --build)
+#
+# Nota: config.yml y *.json quedan ignorados por git (tienen datos del túnel).
+
+tunnel: <TUNNEL_UUID>
+credentials-file: /etc/cloudflared/<TUNNEL_UUID>.json
+
+# Reglas de enrutado (ingress). La app es el servicio "web" en la red de Docker.
+# La última regla (http_status:404) es un catch-all obligatorio.
+ingress:
+  - hostname: figus.tudominio.com
+    service: http://web:3000
+  - service: http_status:404
