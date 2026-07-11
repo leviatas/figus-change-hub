@@ -11,4 +11,4 @@
  * por eso la misma línea sirve para los dos.
  * =========================================================================== */
 
-self.APP_VERSION = '1.0.0';
+self.APP_VERSION = '1.1.0';

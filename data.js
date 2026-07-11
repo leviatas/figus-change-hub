@@ -48,9 +48,11 @@ const TEAM_SECTIONS = TEAMS.map(t => ({
   stickers: range(1, 20),
 }));
 
-// Sección final de patrocinador (Coca-Cola). Ajustá el rango si tu álbum difiere.
+// Sección final de patrocinador (Coca-Cola): 14 figuritas y es OPCIONAL.
+// Al marcarla como opcional, la app permite elegir (con un checkbox) si cuenta
+// o no para los faltantes y el progreso total. Ajustá el rango si tu álbum difiere.
 const CLOSING_SECTIONS = [
-  { id: 'CC', label: 'CC', emoji: '🥤', stickers: range(1, 10) },
+  { id: 'CC', label: 'CC', emoji: '🥤', stickers: range(1, 14), optional: true },
 ];
 
 const ALBUM = [...SPECIAL_SECTIONS, ...TEAM_SECTIONS, ...CLOSING_SECTIONS];

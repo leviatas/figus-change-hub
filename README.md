@@ -184,8 +184,14 @@ compatibles, mayor para cambios grandes. Es el único lugar que hay que tocar.
 
 La estructura del álbum está en **`data.js`**. Si algún rango de números no
 coincide con tu álbum (por ejemplo la sección 🥤), editá los arrays de esa
-sección: la app se adapta sola. La sección 🥤 viene con un rango tentativo
-(1–10) porque en las listas originales estaba cortado.
+sección: la app se adapta sola.
+
+La sección **🥤 Coca-Cola** tiene 14 figuritas y es **opcional**: está marcada
+con `optional: true`. Arriba del álbum aparece un checkbox **"Contar 🥤
+Coca-Cola en los faltantes"** para decidir si esas figuritas cuentan o no en el
+total, en el progreso y en la lista de *Me faltan* al exportar. Por defecto no
+se cuentan. Cualquier sección que marques como `optional: true` se suma a ese
+control automáticamente.
 
 ## Comunidad (modo en línea)
 
