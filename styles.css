@@ -228,4 +228,7 @@ pre.export {
 .hidden { display: none !important; }
 
 footer.foot { text-align: center; color: var(--muted); font-size: .74rem; padding: 20px 0; }
+footer.foot .credit { margin-top: 6px; }
+footer.foot .credit a { color: var(--muted); text-decoration: underline; }
+footer.foot .credit a:hover { color: var(--text); }
 footer.foot .version { margin-top: 6px; font-size: .68rem; opacity: .7; font-variant-numeric: tabular-nums; }
