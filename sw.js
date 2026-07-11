@@ -7,11 +7,15 @@
  *   - Resto de estáticos del mismo origen: stale-while-revalidate.
  * =========================================================================== */
 
-const CACHE = 'fch-shell-v1';
+// La versión (fuente única) define el nombre de la caché: al subirla, el
+// `activate` de abajo borra las cachés viejas y la app se actualiza.
+importScripts('version.js');
+const CACHE = 'fch-shell-v' + (self.APP_VERSION || '0');
 const SHELL = [
   '.',
   'index.html',
   'styles.css',
+  'version.js',
   'data.js',
   'app.js',
   'manifest.webmanifest',
@@ -21,12 +25,20 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
+  // No hacemos skipWaiting acá: cuando hay una versión previa activa, el SW
+  // nuevo queda "waiting" y la página avisa al usuario. Recién activa cuando
+  // acepta actualizar (mensaje SKIP_WAITING). En la primera instalación no hay
+  // SW previo, así que activa igual sin necesidad de saltar la espera.
   event.waitUntil(
     caches.open(CACHE)
       .then((cache) => cache.addAll(SHELL))
-      .then(() => self.skipWaiting())
       .catch(() => {}) // no bloquees la instalación si algún asset falla
   );
+});
+
+// La página pide activar la versión nueva cuando el usuario toca "Actualizar".
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

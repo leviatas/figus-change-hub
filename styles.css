@@ -184,6 +184,12 @@ pre.export {
   max-width: 460px; width: fit-content; pointer-events: auto; animation: pop .25s ease;
 }
 .toast.good { border-color: var(--green); }
+.toast { display: flex; align-items: center; gap: 10px; }
+.toast-btn {
+  background: var(--green-d); border: 1px solid var(--green); color: var(--text);
+  border-radius: 8px; padding: 5px 12px; font-size: .82rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
 @keyframes pop { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 /* Non-intrusive banner */
@@ -222,3 +228,4 @@ pre.export {
 .hidden { display: none !important; }
 
 footer.foot { text-align: center; color: var(--muted); font-size: .74rem; padding: 20px 0; }
+footer.foot .version { margin-top: 6px; font-size: .68rem; opacity: .7; font-variant-numeric: tabular-nums; }

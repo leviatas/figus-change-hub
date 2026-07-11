@@ -593,6 +593,22 @@ function toast(msg, good) {
   setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2600);
 }
 
+// Toast que no se cierra solo y trae un botón de acción (ej.: "Actualizar").
+function toastAction(msg, actionLabel, onAction) {
+  const wrap = $('#toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  const txt = document.createElement('span');
+  txt.textContent = msg;
+  const btn = document.createElement('button');
+  btn.className = 'toast-btn';
+  btn.textContent = actionLabel;
+  btn.addEventListener('click', () => { el.remove(); onAction(); });
+  el.append(txt, btn);
+  wrap.appendChild(el);
+  return el;
+}
+
 /* ---------- Compartir/copiar ---------- */
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); toast('📋 Copiado', true); }
@@ -735,11 +751,45 @@ function switchTab(name) {
 
 /* ---------- PWA: service worker + instalación ---------- */
 let deferredInstallPrompt = null;
+
+// Avisamos (sin molestar) que hay una versión nueva lista y la aplicamos
+// cuando el usuario acepta. El SW hace skipWaiting → controllerchange → reload.
+let updateOffered = false;
+function offerUpdate(worker) {
+  if (updateOffered) return;
+  updateOffered = true;
+  toastAction('✨ Hay una versión nueva', 'Actualizar', () => {
+    worker.postMessage({ type: 'SKIP_WAITING' });
+  });
+}
+
 function setupPWA() {
   // Registrar el service worker (solo con http/https; no en file://)
   if ('serviceWorker' in navigator && ONLINE) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      // Si al cargar ya había un SW controlando, un cambio de controlador
+      // significa "se activó una versión nueva": recargamos una sola vez para
+      // tomar los assets frescos. En la primera instalación no recargamos.
+      const hadController = !!navigator.serviceWorker.controller;
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded || !hadController) return;
+        reloaded = true;
+        window.location.reload();
+      });
+
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        // ¿Ya hay una versión esperando de una visita anterior?
+        if (reg.waiting && navigator.serviceWorker.controller) offerUpdate(reg.waiting);
+        // Nueva versión detectada mientras la página está abierta.
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) offerUpdate(nw);
+          });
+        });
+      }).catch(() => {});
     });
   }
 
@@ -773,6 +823,8 @@ function setupPWA() {
 /* ---------- Init & eventos ---------- */
 function init() {
   $('#album-name').textContent = ALBUM_NAME;
+  // Versión visible en el pie.
+  if (self.APP_VERSION) $('#app-version').textContent = 'v' + self.APP_VERSION;
   // Perfil
   $('#profile-name').value = profile.name || '';
   $('#profile-contact').value = profile.contact || '';

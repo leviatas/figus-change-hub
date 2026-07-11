@@ -163,6 +163,23 @@ Variables (en `.env`):
 El `editToken` se guarda en tu navegador; nadie puede editar/borrar tu
 publicación sin él.
 
+## Versionado 🏷️
+
+La versión de la app vive en **`version.js`** (una sola línea: `self.APP_VERSION`)
+y es la **fuente única**:
+
+- Se muestra en el **pie de página** (`vX.Y.Z`), así sabés qué versión estás usando.
+- Nombra la **caché del service worker** (`fch-shell-vX.Y.Z`). Al subir el número,
+  el `sw.js` borra la caché vieja y sirve los archivos nuevos, en vez de quedar
+  pegado a la primera instalación de la PWA.
+- Cuando hay una versión nueva y tenés la app abierta, aparece un aviso discreto
+  **"✨ Hay una versión nueva · Actualizar"**. Al tocarlo, el service worker
+  activa la versión nueva y la página se recarga una vez.
+
+**Al publicar cambios**, subí el número en `version.js` siguiendo *semver*
+(`mayor.menor.parche`): parche para arreglos, menor para funciones nuevas
+compatibles, mayor para cambios grandes. Es el único lugar que hay que tocar.
+
 ## Ajustar el álbum
 
 La estructura del álbum está en **`data.js`**. Si algún rango de números no
@@ -186,6 +203,7 @@ simplemente no aparece y el resto sigue funcionando.
 ## Archivos
 
 - `index.html` — estructura de la página.
+- `version.js` — versión de la app (fuente única); la usan la página y el `sw.js`.
 - `styles.css` — estilos (mobile-first, modo oscuro).
 - `data.js` — definición del álbum (secciones, selecciones, emojis, rangos).
 - `app.js` — lógica del cliente (estado, import/export, enlaces, comparación, comunidad, PWA).
