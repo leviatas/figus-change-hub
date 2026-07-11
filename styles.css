@@ -41,6 +41,8 @@ header.top {
 }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand h1 { font-size: 1.15rem; margin: 0; letter-spacing: .2px; }
+.brand h1 .ver { font-size: .62rem; font-weight: 600; color: var(--muted); vertical-align: middle; letter-spacing: .3px; font-variant-numeric: tabular-nums; }
+.brand h1 .ver:empty { display: none; }
 .brand .logo { font-size: 1.5rem; }
 .brand small { display: block; color: var(--muted); font-weight: 500; font-size: .72rem; margin-top: 2px; letter-spacing: .5px; text-transform: uppercase; }
 
@@ -235,4 +237,3 @@ footer.foot { text-align: center; color: var(--muted); font-size: .74rem; paddin
 footer.foot .credit { margin-top: 6px; }
 footer.foot .credit a { color: var(--muted); text-decoration: underline; }
 footer.foot .credit a:hover { color: var(--text); }
-footer.foot .version { margin-top: 6px; font-size: .68rem; opacity: .7; font-variant-numeric: tabular-nums; }

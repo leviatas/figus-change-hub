@@ -11,11 +11,11 @@
  * por eso la misma línea sirve para los dos.
  * =========================================================================== */
 
-self.APP_VERSION = '1.1.1';
+self.APP_VERSION = '1.1.2';
 
-// En la página (no en el service worker) mostramos la versión en el pie apenas
-// se carga este archivo, sin depender de app.js. Como version.js siempre se
-// sirve fresco, la versión aparece aunque el resto del bundle esté cacheado.
+// En la página (no en el service worker) mostramos la versión al lado del
+// título apenas se carga este archivo, sin depender de app.js. Como version.js
+// siempre se sirve fresco, aparece aunque el resto del bundle esté cacheado.
 if (typeof document !== 'undefined') {
   const showVersion = () => {
     const el = document.getElementById('app-version');
