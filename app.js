@@ -13,7 +13,7 @@ const UI_KEY = 'fch:v1:ui';
 // counts[sectionId][sticker] = cantidad que tenés (0 = falta, 1 = tengo, 2+ = repes)
 let counts = load(STORE_KEY, {});
 let profile = load(PROFILE_KEY, { name: '', contact: '' });
-let ui = load(UI_KEY, { collapsed: {}, filter: 'all', search: '' });
+let ui = load(UI_KEY, { collapsed: {}, filter: 'all', search: '', countOptional: false });
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -39,9 +39,16 @@ const $$ = sel => Array.from(document.querySelectorAll(sel));
 function sectionById(id) { return ALBUM.find(s => s.id === id); }
 
 /* ---------- Estadísticas ---------- */
+// ¿Una sección cuenta para el total/faltantes? Las opcionales (ej.: Coca-Cola)
+// solo cuentan si el usuario marcó el checkbox correspondiente.
+function isCounted(section) {
+  return !section.optional || !!ui.countOptional;
+}
+
 function stats() {
   let total = 0, have = 0, need = 0, repe = 0;
   for (const s of ALBUM) {
+    if (!isCounted(s)) continue;
     for (const st of s.stickers) {
       total++;
       const c = getCount(s.id, st);
@@ -184,6 +191,8 @@ function listByKind(kind) {
   // kind: 'faltan' → count 0 ; 'repetidas' → count >=2
   const lines = [];
   for (const s of ALBUM) {
+    // No pedimos como faltantes las de una sección opcional que no estás contando.
+    if (kind === 'faltan' && !isCounted(s)) continue;
     const nums = [];
     for (const st of s.stickers) {
       const c = getCount(s.id, st);
@@ -831,6 +840,21 @@ function init() {
   // Filtro / search restaurados
   $('#search').value = ui.search || '';
   $$('.chip-filter').forEach(c => c.classList.toggle('active', c.dataset.filter === (ui.filter || 'all')));
+
+  // Checkbox de secciones opcionales (ej.: Coca-Cola): solo aparece si el
+  // álbum tiene alguna sección marcada como opcional.
+  const optToggle = $('#opt-toggle');
+  const optCheck = $('#count-optional');
+  if (ALBUM.some(s => s.optional)) {
+    optToggle.hidden = false;
+    optCheck.checked = !!ui.countOptional;
+    optCheck.addEventListener('change', () => {
+      ui.countOptional = optCheck.checked;
+      save(UI_KEY, ui);
+      renderProgress();
+      renderExport();
+    });
+  }
 
   renderProgress();
   renderAlbum();
