@@ -62,18 +62,14 @@ fi
 # por lo que NO se publica ningún puerto al host.
 COMPOSE_ARGS=(-f docker-compose.yml)
 
-# Activar cloudflared si hay un archivo de config (endpoint definido) o un TUNNEL_TOKEN.
-if [ -f cloudflared/config.yml ]; then
-  echo "==> cloudflared/config.yml detectado: se levanta el túnel (endpoint -> web:3000)."
-  COMPOSE_ARGS+=(--profile tunnel)
-elif grep -qE '^[[:space:]]*TUNNEL_TOKEN=[^[:space:]]+' "$ENV_FILE"; then
-  echo "==> TUNNEL_TOKEN detectado: se levanta el túnel por token."
-  echo "    (recordá setear CLOUDFLARED_ARGS=tunnel --no-autoupdate run en $ENV_FILE)"
+# Activar cloudflared solo si hay un TUNNEL_TOKEN con valor en .env
+if grep -qE '^[[:space:]]*TUNNEL_TOKEN=[^[:space:]]+' "$ENV_FILE"; then
+  echo "==> TUNNEL_TOKEN detectado: se levanta también cloudflared (túnel público)."
   COMPOSE_ARGS+=(--profile tunnel)
 else
-  echo "==> cloudflared no configurado: se levantan solo web + db."
-  echo "    Para exponerlo: copiá cloudflared/config.yml.example a cloudflared/config.yml"
-  echo "    (endpoint -> http://web:3000) o seteá TUNNEL_TOKEN en $ENV_FILE, y recorré ./prod.sh"
+  echo "==> Sin TUNNEL_TOKEN en $ENV_FILE: se levantan solo web + db."
+  echo "    Conectá tu cloudflared a la red de Docker apuntando a http://web:3000,"
+  echo "    o completá TUNNEL_TOKEN en $ENV_FILE y volvé a correr ./prod.sh"
 fi
 
 echo "==> Construyendo y levantando los contenedores…"

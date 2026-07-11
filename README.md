@@ -89,50 +89,14 @@ Para el servidor público usá el script `prod.sh`, que:
 ./prod.sh
 ```
 
-Cómo exponerla con cloudflared. El túnel corre como un contenedor más del stack
-(perfil `tunnel`) y enruta el hostname público directo a `web:3000` por la red
-interna, sin abrir puertos. Hay dos modos:
+Cómo exponerla con cloudflared (dos opciones):
 
-**A) Con archivo de config (endpoint definido en el repo) — recomendado**
-
-El endpoint (qué hostname va a qué servicio) se define en `cloudflared/config.yml`:
-
-```yaml
-tunnel: <TUNNEL_UUID>
-credentials-file: /etc/cloudflared/<TUNNEL_UUID>.json
-ingress:
-  - hostname: figus.tudominio.com
-    service: http://web:3000     # <- la app
-  - service: http_status:404
-```
-
-Pasos (una vez):
-
-```bash
-cloudflared tunnel login
-cloudflared tunnel create figus-change-hub        # devuelve un UUID + <UUID>.json
-cp cloudflared/config.yml.example cloudflared/config.yml
-#  editá config.yml: poné el UUID y tu hostname; copiá el <UUID>.json a cloudflared/
-cloudflared tunnel route dns figus-change-hub figus.tudominio.com
-./prod.sh
-```
-
-`prod.sh` detecta `cloudflared/config.yml` y levanta el túnel solo. `config.yml`
-y los `*.json` están en `.gitignore` (tienen datos del túnel).
-
-**B) Con token (endpoint definido en el panel de Cloudflare)**
-
-En `.env`:
-
-```bash
-TUNNEL_TOKEN=<token-del-tunnel>
-CLOUDFLARED_ARGS=tunnel --no-autoupdate run
-```
-
-Y en el panel de Cloudflare (Zero Trust → Networks → Tunnels → Public Hostname),
-apuntá el hostname a `http://web:3000`. Después `./prod.sh`.
-
-En ambos modos el servicio interno es siempre **`http://web:3000`**.
+- **Integrado**: pegá el token de tu tunnel en `.env` como `TUNNEL_TOKEN=...` y
+  volvé a correr `./prod.sh`. Levanta también un contenedor `cloudflared` que
+  conecta el túnel directo a `web:3000` por la red interna. En el panel de
+  Cloudflare, apuntá el hostname público del túnel a `http://web:3000`.
+- **Externo**: si ya tenés cloudflared corriendo aparte, conectalo a la red de
+  Docker de este stack y apuntalo a `http://web:3000`.
 
 Producción usa `docker compose -f docker-compose.yml up` (lo hace el script), que
 **ignora** `docker-compose.override.yml`, por eso no se publica ningún puerto.
@@ -205,5 +169,4 @@ simplemente no aparece y el resto sigue funcionando.
 - `docker-compose.yml` — stack base, apto para producción (sin puertos publicados).
 - `docker-compose.override.yml` — extras de desarrollo (publica el puerto local).
 - `prod.sh` — despliegue de producción (git pull, `.env` seguro, sin puertos, cloudflared opcional).
-- `cloudflared/config.yml.example` — config del endpoint del túnel (ingress → `http://web:3000`).
 - `.env.example` — variables de configuración.

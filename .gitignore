@@ -3,5 +3,3 @@ node_modules/
 _shot.js
 .DS_Store
 .env
-cloudflared/config.yml
-cloudflared/*.json

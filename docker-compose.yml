@@ -36,24 +36,15 @@ services:
       db:
         condition: service_healthy
 
-  # Túnel de Cloudflare (opcional). Se activa solo con el perfil "tunnel".
-  # Conecta el túnel directo a web:3000 por la red interna, sin publicar puertos.
-  #
-  # Modo por defecto (archivo de config): definí el endpoint en
-  #   cloudflared/config.yml  (ingress -> http://web:3000). Ver config.yml.example.
-  #
-  # Modo por token: seteá TUNNEL_TOKEN en .env y CLOUDFLARED_ARGS en .env con
-  #   CLOUDFLARED_ARGS=tunnel --no-autoupdate run
-  #   (en este modo el endpoint se define en el panel de Cloudflare -> http://web:3000).
+  # Túnel de Cloudflare (opcional). Se activa solo con el perfil "tunnel" y un
+  # TUNNEL_TOKEN configurado en .env. Conecta el túnel directo a web:3000 por la
+  # red interna, sin publicar puertos. En el panel de Cloudflare, apuntá el
+  # hostname público del túnel a http://web:3000.
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     profiles: ["tunnel"]
-    command: ${CLOUDFLARED_ARGS:-tunnel --no-autoupdate --config /etc/cloudflared/config.yml run}
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
-    volumes:
-      - ./cloudflared:/etc/cloudflared:ro
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:-}
     depends_on:
       - web
 
