@@ -2,6 +2,10 @@ node_modules
 server/node_modules
 .git
 *.png
+# íconos de la PWA (necesarios en la imagen)
+!icon-192.png
+!icon-512.png
+!apple-touch-icon.png
 _shot.js
 .env
 README.md

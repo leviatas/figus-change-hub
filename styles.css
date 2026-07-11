@@ -202,6 +202,23 @@ pre.export {
 .dot.have { border-color: var(--green); background: var(--green-d); }
 .dot.repe { border-color: var(--gold); background: var(--gold-d); }
 
+/* Vista previa de importación */
+.import-preview-box {
+  margin-top: 14px; background: var(--bg-soft); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 14px;
+}
+.import-preview-box .ipv-title { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+.import-preview-box .ipv-row { display: flex; justify-content: space-between; align-items: center; font-size: .88rem; padding: 4px 0; }
+.import-preview-box .ipv-row span { color: var(--muted); }
+.import-preview-box .ipv-row b { color: var(--text); }
+.import-preview-box .ipv-row.total { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
+.import-preview-box .ipv-row.total b { color: var(--green); }
+
+.hint code {
+  background: var(--bg-soft); border: 1px solid var(--line); border-radius: 6px;
+  padding: 1px 5px; font-size: .82em;
+}
+
 .hidden { display: none !important; }
 
 footer.foot { text-align: center; color: var(--muted); font-size: .74rem; padding: 20px 0; }
