@@ -297,15 +297,163 @@ function parseTextList(text) {
         else sid = 'FWC_S';
       } else if (teamCodes.includes(code)) sid = code;
       if (!sid) continue;
-      const nums = cm[2].split(',').map(x => x.trim().replace(/\s*\(x\d+\).*/, '').replace(/[^\d]/g, '')).filter(Boolean);
+      const items = cm[2].split(',').map(x => x.trim()).filter(Boolean);
       if (!result.counts[sid]) result.counts[sid] = {};
-      for (const n of nums) {
-        result.counts[sid][n] = mode === 'repetidas' ? 2 : 0;
+      for (const item of items) {
+        // "5" o "5 (x2)" (x2 = dos repes → count 3)
+        const im = item.match(/(\d+)\s*(?:\(x(\d+)\))?/);
+        if (!im) continue;
+        const n = im[1];
+        if (mode === 'repetidas') {
+          const repes = im[2] ? Math.max(1, parseInt(im[2], 10)) : 1;
+          result.counts[sid][n] = repes + 1;
+        } else {
+          result.counts[sid][n] = 0;
+        }
       }
     }
   }
   const hasData = Object.keys(result.counts).length > 0;
   return hasData ? result : null;
+}
+
+/* ---------- Importación a tu propio álbum ---------- */
+// Igual que parseIncoming, pero distingue el origen para poder reconstruir
+// el álbum correctamente (un enlace/respaldo es una foto completa; una lista
+// de texto solo trae faltantes/repetidas).
+function parseForImport(text) {
+  text = (text || '').trim();
+  if (!text) return null;
+
+  // Enlace o token base64 (#col=...) → foto completa
+  let token = null;
+  const m = text.match(/[#?&]col=([^\s&]+)/);
+  if (m) token = m[1];
+  else if (/^[A-Za-z0-9+/=]+$/.test(text) && text.length > 40) token = text;
+  if (token) {
+    try {
+      const obj = JSON.parse(b64DecodeUnicode(token));
+      if (obj && obj.d) return { kind: 'snapshot', name: obj.n || '', contact: obj.c || '', album: obj.a || '', counts: obj.d };
+    } catch (e) { /* seguimos */ }
+  }
+
+  // Respaldo JSON { counts, profile, album }
+  if (/^\s*\{/.test(text)) {
+    try {
+      const obj = JSON.parse(text);
+      if (obj && obj.counts && typeof obj.counts === 'object' && !Array.isArray(obj.counts)) {
+        return {
+          kind: 'snapshot',
+          name: (obj.profile && obj.profile.name) || '',
+          contact: (obj.profile && obj.profile.contact) || '',
+          album: obj.album || '',
+          counts: obj.counts,
+        };
+      }
+    } catch (e) { /* no era JSON válido */ }
+  }
+
+  // Lista de texto (Me faltan / Repetidas)
+  const list = parseTextList(text);
+  if (list) return { kind: 'textlist', name: list.name, contact: list.contact, album: list.album, counts: list.counts };
+  return null;
+}
+
+// Devuelve el objeto counts resultante de importar `parsed` con el modo dado.
+function importedCounts(parsed, mode) {
+  const clone = o => JSON.parse(JSON.stringify(o || {}));
+
+  if (parsed.kind === 'snapshot') {
+    if (mode === 'replace') return clone(parsed.counts);
+    const base = clone(counts);
+    for (const sid in parsed.counts) {
+      base[sid] = base[sid] || {};
+      for (const st in parsed.counts[sid]) base[sid][st] = parsed.counts[sid][st];
+    }
+    return base;
+  }
+
+  // textlist
+  const p = parsed.counts;
+  if (mode === 'replace') {
+    // Reconstruimos el álbum completo: todo "la tengo" salvo lo que aparezca
+    // listado como faltante (0) o repetida (>=2).
+    const base = {};
+    for (const s of ALBUM) {
+      for (const st of s.stickers) {
+        const v = p[s.id] && p[s.id][st];
+        let val;
+        if (v === 0) val = 0;
+        else if (v >= 2) val = v;
+        else val = 1;
+        if (val > 0) { base[s.id] = base[s.id] || {}; base[s.id][st] = val; }
+      }
+    }
+    return base;
+  }
+
+  // merge de lista de texto sobre lo actual
+  const base = clone(counts);
+  for (const sid in p) {
+    for (const st in p[sid]) {
+      const v = p[sid][st];
+      if (v === 0) { if (base[sid]) delete base[sid][st]; }
+      else { base[sid] = base[sid] || {}; base[sid][st] = v; }
+    }
+  }
+  return base;
+}
+
+function statsFor(cts) {
+  let total = 0, have = 0, need = 0, repe = 0;
+  for (const s of ALBUM) for (const st of s.stickers) {
+    total++;
+    const c = (cts[s.id] && cts[s.id][st]) || 0;
+    if (c >= 1) have++; else need++;
+    if (c >= 2) repe += (c - 1);
+  }
+  return { total, have, need, repe };
+}
+
+let importMode = 'merge';
+
+function renderImportPreview(parsed) {
+  const el = $('#import-preview');
+  if (!parsed) {
+    el.innerHTML = `<div class="empty">No pude leer esa lista o enlace. Pegá tu enlace del hub o el texto que genera Exportar.</div>`;
+    return null;
+  }
+  const next = importedCounts(parsed, importMode);
+  const before = stats();
+  const after = statsFor(next);
+  let changed = 0;
+  for (const s of ALBUM) for (const st of s.stickers) {
+    const a = getCount(s.id, st);
+    const b = (next[s.id] && next[s.id][st]) || 0;
+    if (a !== b) changed++;
+  }
+  const src = parsed.kind === 'snapshot' ? 'enlace / respaldo' : 'lista de texto';
+  el.innerHTML = `
+    <div class="import-preview-box">
+      <div class="ipv-title">Vista previa · ${escapeHtml(src)}${parsed.album ? ' · ' + escapeHtml(parsed.album) : ''}</div>
+      <div class="ipv-row"><span>La tengo</span><b>${before.have} → ${after.have}</b></div>
+      <div class="ipv-row"><span>Me faltan</span><b>${before.need} → ${after.need}</b></div>
+      <div class="ipv-row"><span>Repetidas</span><b>${before.repe} → ${after.repe}</b></div>
+      <div class="ipv-row total"><span>Figuritas que cambian</span><b>${changed}</b></div>
+    </div>`;
+  return next;
+}
+
+function applyImport(next) {
+  if (!next) return;
+  counts = next;
+  for (const sid in counts) {
+    if (counts[sid] && Object.keys(counts[sid]).length === 0) delete counts[sid];
+  }
+  persist();
+  renderProgress();
+  renderAlbum();
+  toast('✅ Lista importada a tu álbum', true);
 }
 
 /* ---------- Comparación / intercambios ---------- */
@@ -585,6 +733,43 @@ function switchTab(name) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+/* ---------- PWA: service worker + instalación ---------- */
+let deferredInstallPrompt = null;
+function setupPWA() {
+  // Registrar el service worker (solo con http/https; no en file://)
+  if ('serviceWorker' in navigator && ONLINE) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+
+  const btn = $('#install-btn');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (btn) btn.style.display = '';
+  });
+  if (btn) btn.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) { toast('Usá el menú del navegador para instalar 📲'); return; }
+    deferredInstallPrompt.prompt();
+    try { await deferredInstallPrompt.userChoice; } catch {}
+    deferredInstallPrompt = null;
+    btn.style.display = 'none';
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (btn) btn.style.display = 'none';
+    toast('🎉 App instalada', true);
+  });
+
+  // Si ya está corriendo instalada, aclaramos la ayuda.
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (standalone) {
+    const help = $('#install-help');
+    if (help) help.textContent = 'Ya estás usando la app instalada. 🎉';
+  }
+}
+
 /* ---------- Init & eventos ---------- */
 function init() {
   $('#album-name').textContent = ALBUM_NAME;
@@ -662,6 +847,40 @@ function init() {
     reader.readAsText(file);
   });
 
+  // Importar a tu propio álbum
+  const importHints = {
+    merge: 'Combina lo que pegás con lo que ya tenías marcado, sin borrar el resto.',
+    replace: 'Reemplaza todo tu álbum: lo listado en "me faltan" queda como faltante, lo de "repetidas" como repetida y el resto como "la tengo".',
+  };
+  $$('#import-mode-seg .seg-btn').forEach(b => b.addEventListener('click', () => {
+    importMode = b.dataset.mode;
+    $$('#import-mode-seg .seg-btn').forEach(x => x.classList.toggle('active', x === b));
+    $('#import-mode-hint').textContent = importHints[importMode] || '';
+    if ($('#import-in').value.trim()) renderImportPreview(parseForImport($('#import-in').value));
+  }));
+  $('#import-preview-btn').addEventListener('click', () =>
+    renderImportPreview(parseForImport($('#import-in').value)));
+  $('#import-apply-btn').addEventListener('click', () => {
+    const parsed = parseForImport($('#import-in').value);
+    if (!parsed) { renderImportPreview(parsed); toast('No pude leer esa lista o enlace 🤔'); return; }
+    applyImport(renderImportPreview(parsed));
+  });
+  $('#import-file-btn').addEventListener('click', () => $('#import-file').click());
+  $('#import-file').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const raw = String(reader.result);
+      const parsed = parseForImport(raw);
+      if (!parsed) { toast('No pude leer ese archivo 🤔'); return; }
+      // Mostramos el texto pegado salvo que sea un respaldo JSON (poco legible).
+      $('#import-in').value = /\.json$/i.test(file.name) ? '' : raw;
+      applyImport(renderImportPreview(parsed));
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
   // Perfil guardar
   $('#save-profile').addEventListener('click', () => {
     profile.name = $('#profile-name').value.trim();
@@ -691,6 +910,7 @@ function init() {
   }
 
   checkIncomingUrl();
+  setupPWA();
 }
 
 document.addEventListener('DOMContentLoaded', init);

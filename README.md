@@ -22,6 +22,16 @@ Funciona de dos maneras:
     por selección. Ideal para revisar el álbum y setear rápido lo que ya conseguiste.
   - Barra de progreso general y por sección.
 
+- **Importar** tu lista sin marcar todo a mano:
+  - Pegá **tu propio enlace** del hub o tu texto de **Me faltan / Repetidas**
+    (el mismo formato que genera *Exportar*) y se carga en tu álbum.
+  - Elegí **Combinar** (aplica sobre lo que ya tenías) o **Reemplazar todo**
+    (reconstruye el álbum: lo listado como faltante queda faltante, lo de
+    repetidas como repetida y el resto como *la tengo*).
+  - **Vista previa** antes de aplicar: te muestra cuántas figuritas cambian.
+  - También podés importar un **archivo** `.json` (respaldo) o `.txt` exportado.
+  - Desde acá se **instala la app** en el teléfono (ver *Instalar como app*).
+
 - **Exportar** tu lista de varias formas:
   - **Me faltan**, **Repetidas** o **ambas**, en el mismo formato de texto de las
     listas de WhatsApp.
@@ -46,6 +56,21 @@ Cuando alguien te comparte su enlace y lo abrís, aparece un **banner discreto**
 arriba (no un pop-up molesto) avisándote cuántas figuritas hay para cambiar, con
 un botón *Ver intercambios*. Podés cerrarlo con la ✕. Nada de notificaciones
 invasivas ni cuentas obligatorias.
+
+## Instalar como app (PWA) 📲
+
+El sitio es una **PWA**: se puede instalar en el teléfono y abrir desde el ícono,
+y funciona sin conexión (el álbum vive en tu dispositivo).
+
+- **Android (Chrome/Edge):** entrá al sitio y usá el botón **⬇️ Instalar app**
+  del tab *Importar*, o el menú ⋮ → *Instalar app* / *Agregar a la pantalla
+  principal*.
+- **iPhone (Safari):** botón *Compartir* → *Agregar a inicio*.
+
+Requisitos: servir el sitio por **HTTPS** (por ejemplo detrás del Cloudflare
+Tunnel de producción). La instalación se apoya en `manifest.webmanifest`,
+`sw.js` (service worker que cachea el sitio para uso offline) y los íconos
+`icon-192.png` / `icon-512.png`.
 
 ## Dos formas de usarlo
 
@@ -163,7 +188,10 @@ simplemente no aparece y el resto sigue funcionando.
 - `index.html` — estructura de la página.
 - `styles.css` — estilos (mobile-first, modo oscuro).
 - `data.js` — definición del álbum (secciones, selecciones, emojis, rangos).
-- `app.js` — lógica del cliente (estado, export, enlaces, comparación, comunidad).
+- `app.js` — lógica del cliente (estado, import/export, enlaces, comparación, comunidad, PWA).
+- `manifest.webmanifest` — manifiesto de la PWA (nombre, íconos, colores).
+- `sw.js` — service worker (cachea el sitio para instalarlo y usarlo offline).
+- `icon-192.png` / `icon-512.png` / `apple-touch-icon.png` — íconos de la app.
 - `server/` — backend Node/Express + Postgres (API y servido del sitio).
 - `Dockerfile` — imagen del servicio web.
 - `docker-compose.yml` — stack base, apto para producción (sin puertos publicados).
