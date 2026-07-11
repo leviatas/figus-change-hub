@@ -832,8 +832,7 @@ function setupPWA() {
 /* ---------- Init & eventos ---------- */
 function init() {
   $('#album-name').textContent = ALBUM_NAME;
-  // Versión visible en el pie.
-  if (self.APP_VERSION) $('#app-version').textContent = 'v' + self.APP_VERSION;
+  // (La versión del pie la escribe version.js, sin depender de este bundle.)
   // Perfil
   $('#profile-name').value = profile.name || '';
   $('#profile-contact').value = profile.contact || '';
