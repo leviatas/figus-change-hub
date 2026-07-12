@@ -25,20 +25,20 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  // No hacemos skipWaiting acá: cuando hay una versión previa activa, el SW
-  // nuevo queda "waiting" y la página avisa al usuario. Recién activa cuando
-  // acepta actualizar (mensaje SKIP_WAITING). En la primera instalación no hay
-  // SW previo, así que activa igual sin necesidad de saltar la espera.
+  // Auto-actualización: apenas termina de cachear el shell, este SW pide activar
+  // (skipWaiting) sin esperar a que se cierren las pestañas. Junto con
+  // clients.claim() del activate y la recarga que hace app.js al cambiar de
+  // controlador, la app se actualiza sola en la próxima visita. Es seguro porque
+  // todo el estado del álbum vive en localStorage (no se pierde al recargar).
+  // skipWaiting va primero e incondicional: si lo encadenáramos después de
+  // cache.addAll y algún asset fallara, el .catch se lo tragaría y el SW nuevo
+  // quedaría "esperando" para siempre (nunca se actualizaría la app).
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE)
       .then((cache) => cache.addAll(SHELL))
       .catch(() => {}) // no bloquees la instalación si algún asset falla
   );
-});
-
-// La página pide activar la versión nueva cuando el usuario toca "Actualizar".
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

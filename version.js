@@ -11,7 +11,7 @@
  * por eso la misma línea sirve para los dos.
  * =========================================================================== */
 
-self.APP_VERSION = '1.1.2';
+self.APP_VERSION = '1.1.3';
 
 // En la página (no en el service worker) mostramos la versión al lado del
 // título apenas se carga este archivo, sin depender de app.js. Como version.js
