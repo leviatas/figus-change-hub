@@ -73,6 +73,26 @@ else
   fi
 fi
 
+# --- 2b) Mostrar la clave de administrador en consola ------------------------
+# La clave del menú de Admin (telemetría) se muestra en cada ejecución para
+# tenerla a mano. Se lee del .env, así cubre los tres casos: recién creada,
+# agregada a un .env viejo, o ya existente. Se imprime antes del build para
+# que quede visible aunque la construcción de contenedores falle.
+ADMIN_TOKEN_VALUE="$(grep -E '^[[:space:]]*ADMIN_TOKEN=' "$ENV_FILE" | tail -n 1 | cut -d= -f2- | tr -d '[:space:]')"
+echo ""
+if [ -n "$ADMIN_TOKEN_VALUE" ]; then
+  echo "============================================================"
+  echo "  🔐  Clave del menú de Admin (ADMIN_TOKEN)"
+  echo "  ----------------------------------------------------------"
+  echo "      ${ADMIN_TOKEN_VALUE}"
+  echo "  ----------------------------------------------------------"
+  echo "  Entrá tocando la versión en el pie de la app y pegá esta"
+  echo "  clave. Queda guardada en ${ENV_FILE}."
+  echo "============================================================"
+else
+  echo "==> ⚠ No hay ADMIN_TOKEN en ${ENV_FILE}: el menú de Admin queda deshabilitado."
+fi
+
 # --- 3) Levantar en producción (sin puertos publicados) ---------------------
 # Usamos solo docker-compose.yml (ignora docker-compose.override.yml de dev),
 # por lo que NO se publica ningún puerto al host.
