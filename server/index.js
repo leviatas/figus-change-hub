@@ -159,6 +159,27 @@ app.get('/api/admin/telemetry', async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: 'db' }); }
 });
 
+// Listar publicaciones para administración (solo admin). Liviano: sin `data`.
+app.get('/api/admin/collections', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const r = await pool.query(
+      `SELECT id, name, contact, album, stats, created_at, updated_at
+         FROM collections ORDER BY updated_at DESC LIMIT $1`, [MAX_LIST]);
+    res.json(r.rows);
+  } catch (e) { console.error(e); res.status(500).json({ error: 'db' }); }
+});
+
+// Borrar cualquier publicación (solo admin; NO requiere editToken).
+app.delete('/api/admin/collections/:id', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const r = await pool.query(`DELETE FROM collections WHERE id = $1`, [req.params.id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'not_found' });
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: 'bad_id' }); }
+});
+
 // Listar colecciones publicadas (para el muro de comunidad)
 app.get('/api/collections', async (_req, res) => {
   try {
