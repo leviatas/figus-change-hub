@@ -201,17 +201,6 @@ pre.export {
 #notice.show { display: flex; }
 #notice .x { margin-left: auto; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 0 4px; }
 
-/* Aviso de versión nueva: banner fijo, abajo y centrado, con botón Actualizar */
-#sw-update {
-  display: none; position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
-  z-index: 70; max-width: calc(100% - 24px); align-items: center; gap: 10px;
-  background: linear-gradient(135deg,#132542,#0f2018); border: 1px solid var(--line);
-  border-radius: 12px; padding: 10px 14px; font-size: .86rem; line-height: 1.4;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4);
-}
-#sw-update.show { display: flex; }
-#sw-update .x { color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 0 4px; }
-
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .74rem; color: var(--muted); margin-bottom: 12px; }
 .legend span { display: flex; align-items: center; gap: 6px; }
 .dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; border: 1.5px solid; }
