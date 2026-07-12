@@ -26,23 +26,23 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  // Cacheamos el "app shell". A propósito NO llamamos skipWaiting acá: el SW
-  // nuevo queda "esperando" y la página muestra el botón "Actualizar". Recién
-  // cuando la persona lo toca, la página nos manda {type:'SKIP_WAITING'} (ver el
-  // listener de 'message' de abajo) y ahí sí activamos. Es seguro recargar
-  // porque todo el estado del álbum vive en localStorage.
+  // Auto-actualización: activamos apenas terminamos de cachear el shell
+  // (skipWaiting), sin esperar a que se cierren las pestañas ni un botón. Junto
+  // con clients.claim() del activate y la recarga que hace app.js al cambiar de
+  // controlador, la app se actualiza sola en la próxima visita. Es seguro porque
+  // todo el estado del álbum vive en localStorage (no se pierde al recargar).
+  // skipWaiting va primero e incondicional: si lo encadenáramos después de
+  // addAll y algún asset fallara, el .catch se lo tragaría y el SW nuevo quedaría
+  // "esperando" para siempre (nunca se actualizaría la app).
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE)
-      .then((cache) => cache.addAll(SHELL))
+      // { cache: 'reload' }: bajamos el shell salteando el cache HTTP del
+      // navegador/CDN, así la caché nueva queda con los archivos realmente
+      // frescos (evita servir un app.js viejo detrás de Cloudflare).
+      .then((cache) => cache.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))
       .catch(() => {}) // no bloquees la instalación si algún asset falla
   );
-});
-
-// La página nos pide activar la versión nueva cuando se toca "Actualizar".
-// Al activarse (clients.claim del 'activate'), cambia el controlador y app.js
-// recarga la página una vez para servir los assets frescos.
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

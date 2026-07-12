@@ -153,5 +153,5 @@ through the self-hosted runner in `.github/workflows/deploy.yml` (needs the
 | `POSTGRES_USER` | `figus` | DB user |
 | `POSTGRES_PASSWORD` | `figus` | DB password (prod.sh generates a secure one) |
 | `POSTGRES_DB` | `figus` | DB name |
-| `ADMIN_TOKEN` | — | Clave del menú de Admin (telemetría). Sin valor, el panel queda deshabilitado. prod.sh genera una segura al crear el `.env` |
+| `ADMIN_TOKEN` | — | Clave del menú de Admin (telemetría). Sin valor, el panel queda deshabilitado. prod.sh genera una segura si falta y la muestra en consola al ejecutarse |
 | `TUNNEL_TOKEN` | — | Cloudflare Tunnel token; if set, prod.sh runs cloudflared |
