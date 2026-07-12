@@ -75,6 +75,19 @@ function sectionStats(s) {
   return { have, total: s.stickers.length };
 }
 
+function sectionComplete(s) {
+  const { have, total } = sectionStats(s);
+  return total > 0 && have === total;
+}
+
+// ¿La sección arranca colapsada? Si la persona ya la tocó (colapsó/expandió),
+// respetamos su elección. Si nunca la tocó, por defecto las secciones completas
+// arrancan colapsadas (así ves de una lo que te falta) y las demás, abiertas.
+function isCollapsed(s) {
+  if (s.id in ui.collapsed) return !!ui.collapsed[s.id];
+  return sectionComplete(s);
+}
+
 function stickerClass(c) {
   if (c >= 2) return 'repe';
   if (c >= 1) return 'have';
@@ -104,7 +117,7 @@ function renderAlbum() {
 
     anyShown = true;
     const ss = sectionStats(s);
-    const collapsed = !!ui.collapsed[s.id];
+    const collapsed = isCollapsed(s);
 
     const sec = document.createElement('div');
     sec.className = 'section' + (collapsed ? ' collapsed' : '');
@@ -120,9 +133,12 @@ function renderAlbum() {
         <span class="caret">▾</span>
       </span>`;
     head.addEventListener('click', () => {
-      ui.collapsed[s.id] = !ui.collapsed[s.id];
+      // Partimos del estado realmente visible (no del valor crudo guardado, que
+      // puede ser undefined cuando la sección arranca colapsada por defecto).
+      const next = !sec.classList.contains('collapsed');
+      ui.collapsed[s.id] = next;
       save(UI_KEY, ui);
-      sec.classList.toggle('collapsed');
+      sec.classList.toggle('collapsed', next);
     });
     sec.appendChild(head);
 
@@ -939,7 +955,7 @@ function init() {
 
   // Colapsar todo / expandir todo
   $('#collapse-all').addEventListener('click', () => {
-    const anyOpen = ALBUM.some(s => !ui.collapsed[s.id]);
+    const anyOpen = ALBUM.some(s => !isCollapsed(s));
     ALBUM.forEach(s => ui.collapsed[s.id] = anyOpen);
     save(UI_KEY, ui);
     $('#collapse-all').textContent = anyOpen ? 'Expandir todo' : 'Colapsar todo';
