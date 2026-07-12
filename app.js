@@ -745,13 +745,33 @@ function switchTab(name) {
 /* ---------- PWA: service worker + instalación ---------- */
 let deferredInstallPrompt = null;
 
+/* ---------- Aviso de versión nueva ---------- */
+function showUpdatePrompt(worker) {
+  const el = $('#sw-update');
+  if (!el || el.classList.contains('show')) return; // no lo dupliquemos
+  el.innerHTML = `
+    <span>✨ Hay una versión nueva</span>
+    <button class="btn primary" id="sw-update-btn" style="padding:7px 12px">Actualizar</button>
+    <span class="x" id="sw-update-x" title="Ahora no">✕</span>`;
+  el.classList.add('show');
+  $('#sw-update-btn').addEventListener('click', () => {
+    const b = $('#sw-update-btn');
+    b.disabled = true;
+    b.textContent = 'Actualizando…';
+    // Le pedimos al SW en espera que se active; al tomar control, el
+    // controllerchange de arriba recarga la página una sola vez.
+    worker.postMessage({ type: 'SKIP_WAITING' });
+  });
+  $('#sw-update-x').addEventListener('click', () => el.classList.remove('show'));
+}
+
 function setupPWA() {
   // Registrar el service worker (solo con http/https; no en file://)
   if ('serviceWorker' in navigator && ONLINE) {
     window.addEventListener('load', () => {
-      // Auto-actualización: cuando el SW nuevo toma control (skipWaiting +
-      // clients.claim), recargamos una vez para servir los assets frescos.
-      // En la primera instalación no había controlador, así que no recargamos.
+      // Cuando el SW nuevo toma control (después de tocar "Actualizar" →
+      // SKIP_WAITING + clients.claim), recargamos una vez para servir los assets
+      // frescos. En la primera instalación no había controlador, no recargamos.
       const hadController = !!navigator.serviceWorker.controller;
       let reloaded = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -766,7 +786,19 @@ function setupPWA() {
       // sw.js no cambie byte a byte). El propio sw.js lee esa versión del ?v=.
       const version = ($('#app-version')?.textContent || '').trim().replace(/^v/i, '');
       const swUrl = 'sw.js' + (version ? '?v=' + encodeURIComponent(version) : '');
-      navigator.serviceWorker.register(swUrl).catch(() => {});
+      navigator.serviceWorker.register(swUrl).then((reg) => {
+        // ¿Ya quedó un SW nuevo esperando de una visita anterior? Avisamos.
+        if (reg.waiting && navigator.serviceWorker.controller) showUpdatePrompt(reg.waiting);
+        // ¿Aparece uno nuevo ahora? Esperamos a que termine de instalarse
+        // (queda "esperando", habiendo ya un controlador) y mostramos el botón.
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) showUpdatePrompt(sw);
+          });
+        });
+      }).catch(() => {});
     });
   }
 
