@@ -82,6 +82,8 @@ Serves the static site from `STATIC_DIR` (default repo root) and exposes:
 - `GET  /api/health`
 - `GET  /api/admin/telemetry` — métricas agregadas de la comunidad (solo admin;
   requiere header `x-admin-token` = `ADMIN_TOKEN`; 503 si no está configurado)
+- `GET  /api/admin/collections` — lista de publicaciones para moderar (solo admin)
+- `DELETE /api/admin/collections/:id` — borra cualquier publicación sin `editToken` (solo admin)
 - `GET  /api/collections` — list (max 200, newest first)
 - `GET  /api/collections/:id`
 - `POST /api/collections` — publish → returns `{ id, editToken }`

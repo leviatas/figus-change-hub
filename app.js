@@ -826,6 +826,11 @@ function renderTelemetry(t) {
     </div>
     <div class="tele-sec"><h3>Álbumes</h3>${albums}</div>
     <div class="tele-sec"><h3>Top repes en circulación</h3>${spare}</div>
+    <div class="tele-sec">
+      <h3>Publicaciones · borrar</h3>
+      <p class="hint" style="margin:0 0 8px">Borrar la publicación de una persona la quita de la comunidad para todos. No se puede deshacer.</p>
+      <div id="admin-collections"></div>
+    </div>
     <div class="tele-ts">Generado ${escapeHtml(fmtDate(t.generatedAt))}</div>
     <div class="tele-foot">
       <button class="btn" id="admin-refresh">↻ Actualizar</button>
@@ -839,6 +844,56 @@ function renderTelemetry(t) {
     sessionStorage.removeItem(ADMIN_TOKEN_KEY);
     renderAdminLogin();
   });
+  loadAdminCollections();
+}
+
+// Lista de publicaciones con botón para borrar (solo admin).
+async function loadAdminCollections() {
+  const el = $('#admin-collections');
+  if (!el) return;
+  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  el.innerHTML = '<div class="empty" style="padding:12px">Cargando publicaciones…</div>';
+  let rows;
+  try {
+    const res = await fetch('api/admin/collections', { headers: { 'x-admin-token': token }, cache: 'no-store' });
+    if (!res.ok) throw new Error('bad');
+    rows = await res.json();
+  } catch { el.innerHTML = '<div class="empty" style="padding:12px">No se pudieron cargar las publicaciones.</div>'; return; }
+  if (!rows.length) { el.innerHTML = '<div class="empty" style="padding:12px">No hay publicaciones.</div>'; return; }
+
+  el.innerHTML = rows.map(r => {
+    const s = r.stats || {};
+    const meta = [r.contact, r.album].filter(Boolean).map(escapeHtml).join(' · ');
+    const nums = (s.have != null) ? `${num(s.have)} pegadas · ${num(s.repe)} repes` : '';
+    return `<div class="adm-row">
+      <div class="adm-info">
+        <div class="adm-name">👤 ${escapeHtml(r.name || 'Sin nombre')}</div>
+        ${meta ? `<div class="adm-meta">${meta}</div>` : ''}
+        ${nums ? `<div class="adm-meta">${nums} · ${escapeHtml(fmtDate(r.updated_at))}</div>` : ''}
+      </div>
+      <button class="btn ghost adm-del" data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(r.name || 'Sin nombre')}" title="Borrar publicación">🗑️</button>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('.adm-del').forEach(btn =>
+    btn.addEventListener('click', () => deleteAdminCollection(btn.dataset.id, btn.dataset.name)));
+}
+
+function num(v) { return Math.max(0, Math.floor(Number(v) || 0)); }
+
+async function deleteAdminCollection(id, name) {
+  if (!confirm(`¿Borrar la publicación de "${name}"?\nSe la quita de la comunidad para todos. No se puede deshacer.`)) return;
+  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  try {
+    const res = await fetch('api/admin/collections/' + encodeURIComponent(id), {
+      method: 'DELETE', headers: { 'x-admin-token': token }, cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('bad');
+    toast('🗑️ Publicación borrada', true);
+    // Refrescamos métricas + lista, y el muro de comunidad si está a la vista.
+    loadTelemetry(token);
+    if (ONLINE && typeof loadCommunity === 'function') loadCommunity();
+  } catch { toast('No se pudo borrar 😕'); }
 }
 
 /* ---------- Navegación por tabs ---------- */
