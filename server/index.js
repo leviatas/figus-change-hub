@@ -7,12 +7,16 @@
 import express from 'express';
 import pg from 'pg';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STATIC_DIR = process.env.STATIC_DIR || path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 3000);
 const MAX_LIST = 200;
+// Clave de administrador para la telemetría (menú de Admin). Si no está seteada,
+// el panel de admin queda deshabilitado (responde 503).
+const ADMIN_TOKEN = (process.env.ADMIN_TOKEN || '').trim();
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
@@ -72,11 +76,88 @@ function validData(d) {
   return out;
 }
 
+/* ---------- Admin / Telemetría ---------- */
+function num(v) { return Math.max(0, Math.floor(Number(v) || 0)); }
+
+// Verifica la clave de admin del pedido (header x-admin-token) contra ADMIN_TOKEN.
+// Devuelve true si pasa; si no, responde el error correspondiente y devuelve false.
+function checkAdmin(req, res) {
+  if (!ADMIN_TOKEN) { res.status(503).json({ error: 'admin_disabled' }); return false; }
+  const given = String(req.get('x-admin-token') || '');
+  const a = Buffer.from(given);
+  const b = Buffer.from(ADMIN_TOKEN);
+  // Comparación en tiempo constante (evita filtrar el token por timing).
+  const ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!ok) { res.status(401).json({ error: 'unauthorized' }); return false; }
+  return true;
+}
+
 /* ---------- App ---------- */
 const app = express();
 app.use(express.json({ limit: '512kb' }));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+// Telemetría del servidor (solo admin). Métricas agregadas de la comunidad.
+app.get('/api/admin/telemetry', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const r = await pool.query(`SELECT album, stats, data, created_at, updated_at FROM collections`);
+    const now = Date.now();
+    const DAY = 86400000;
+    let new24h = 0, new7d = 0, active7d = 0;
+    const albums = new Map();      // nombre de álbum -> cantidad de listas
+    const totals = { have: 0, need: 0, repe: 0 };
+    const spare = new Map();       // "SECC #n" -> repetidas en circulación
+
+    for (const row of r.rows) {
+      const created = new Date(row.created_at).getTime();
+      const updated = new Date(row.updated_at).getTime();
+      if (now - created <= DAY) new24h++;
+      if (now - created <= 7 * DAY) new7d++;
+      if (now - updated <= 7 * DAY) active7d++;
+
+      const album = (row.album || '').trim() || '(sin nombre)';
+      albums.set(album, (albums.get(album) || 0) + 1);
+
+      const s = row.stats || {};
+      totals.have += num(s.have);
+      totals.need += num(s.need);
+      totals.repe += num(s.repe);
+
+      const data = row.data || {};
+      for (const [sec, obj] of Object.entries(data)) {
+        if (!obj || typeof obj !== 'object') continue;
+        for (const [st, n] of Object.entries(obj)) {
+          const c = num(n);
+          if (c >= 2) {
+            const key = `${sec} #${st}`;
+            spare.set(key, (spare.get(key) || 0) + (c - 1));
+          }
+        }
+      }
+    }
+
+    const totalTracked = totals.have + totals.need;
+    const avgCompletion = totalTracked ? totals.have / totalTracked : 0;
+    const albumList = Array.from(albums.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+    const topSpare = Array.from(spare.entries())
+      .map(([key, count]) => ({ key, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
+
+    res.json({
+      collections: r.rowCount,
+      new24h, new7d, active7d,
+      totals, avgCompletion,
+      albums: albumList,
+      topSpare,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'db' }); }
+});
 
 // Listar colecciones publicadas (para el muro de comunidad)
 app.get('/api/collections', async (_req, res) => {
@@ -152,5 +233,8 @@ app.delete('/api/collections/:id', async (req, res) => {
 app.use(express.static(STATIC_DIR));
 
 initDb()
-  .then(() => app.listen(PORT, () => console.log(`[web] escuchando en http://0.0.0.0:${PORT}`)))
+  .then(() => app.listen(PORT, () => {
+    console.log(`[web] escuchando en http://0.0.0.0:${PORT}`);
+    console.log(`[admin] telemetría ${ADMIN_TOKEN ? 'habilitada' : 'deshabilitada (falta ADMIN_TOKEN)'}`);
+  }))
   .catch(err => { console.error(err); process.exit(1); });

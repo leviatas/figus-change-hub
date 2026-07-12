@@ -34,8 +34,9 @@ gen_secret() {
 }
 
 if [ ! -f "$ENV_FILE" ]; then
-  echo "==> No existe $ENV_FILE: generando uno con contraseña de BD segura…"
+  echo "==> No existe $ENV_FILE: generando uno con contraseña de BD y clave de admin seguras…"
   DB_PASS="$(gen_secret)"
+  ADMIN_TOKEN="$(gen_secret)"
   umask 077
   cat > "$ENV_FILE" <<EOF
 # Generado automáticamente por prod.sh el $(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -46,15 +47,30 @@ POSTGRES_USER=figus
 POSTGRES_PASSWORD=${DB_PASS}
 POSTGRES_DB=figus
 
+# --- Admin / Telemetría ---
+# Clave para entrar al menú de Admin (tocando la versión en el pie de la app).
+ADMIN_TOKEN=${ADMIN_TOKEN}
+
 # --- Cloudflare Tunnel (opcional) ---
 # Pegá el token de tu tunnel para que prod.sh levante cloudflared apuntando a
 # web:3000 (sin abrir puertos). En Cloudflare, apuntá el hostname a http://web:3000.
 # TUNNEL_TOKEN=
 EOF
   chmod 600 "$ENV_FILE"
-  echo "==> $ENV_FILE creado con una contraseña de BD generada."
+  echo "==> $ENV_FILE creado con una contraseña de BD y una clave de admin generadas."
+  echo "    La clave de admin (ADMIN_TOKEN) está en $ENV_FILE. Se usa en el menú de Admin."
 else
   echo "==> $ENV_FILE ya existe: lo dejo tal cual (no piso la contraseña)."
+  # Compatibilidad con instalaciones previas: si falta ADMIN_TOKEN, agregamos uno
+  # generado para habilitar el menú de Admin sin tener que editar a mano.
+  if ! grep -qE '^[[:space:]]*ADMIN_TOKEN=' "$ENV_FILE"; then
+    echo "==> $ENV_FILE no tenía ADMIN_TOKEN: agrego una clave de admin generada."
+    {
+      echo ""
+      echo "# --- Admin / Telemetría (agregado por prod.sh) ---"
+      echo "ADMIN_TOKEN=$(gen_secret)"
+    } >> "$ENV_FILE"
+  fi
 fi
 
 # --- 3) Levantar en producción (sin puertos publicados) ---------------------
