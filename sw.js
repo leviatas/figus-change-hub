@@ -16,6 +16,7 @@ const CACHE = 'fch-shell-v' + APP_VERSION;
 const SHELL = [
   '.',
   'index.html',
+  'legal.html',
   'styles.css',
   'data.js',
   'app.js',
