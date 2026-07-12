@@ -733,6 +733,98 @@ async function loadCommunity() {
   if (totalSwaps) toast(`🔔 ${totalSwaps} cambio(s) posibles con ${withSwaps.length} persona(s)`, true);
 }
 
+/* ---------- Admin · Telemetría ---------- */
+// Se accede tocando la versión en el pie. Pide la clave (ADMIN_TOKEN del .env)
+// y muestra métricas agregadas de la comunidad servidas por /api/admin/telemetry.
+const ADMIN_TOKEN_KEY = 'fch:v1:adminToken';
+
+function openAdmin() {
+  const ov = $('#admin-overlay');
+  ov.classList.remove('hidden');
+  if (!ONLINE) {
+    $('#admin-body').innerHTML = `<div class="empty">La telemetría de admin requiere el servidor con base de datos. Abrí la app desde el servidor, no como archivo local.</div>`;
+    return;
+  }
+  const saved = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  if (saved) loadTelemetry(saved);
+  else renderAdminLogin();
+}
+function closeAdmin() { $('#admin-overlay').classList.add('hidden'); }
+
+function renderAdminLogin(msg) {
+  $('#admin-body').innerHTML = `
+    <p class="hint">Ingresá la clave de administrador (<code>ADMIN_TOKEN</code>) para ver la telemetría del servidor.</p>
+    <div class="field">
+      <input id="admin-token-in" type="password" placeholder="Clave de admin" autocomplete="off" />
+    </div>
+    ${msg ? `<p class="admin-error">${escapeHtml(msg)}</p>` : ''}
+    <button class="btn primary block" id="admin-login-btn">Entrar</button>`;
+  $('#admin-login-btn').addEventListener('click', () => {
+    const t = $('#admin-token-in').value.trim();
+    if (t) loadTelemetry(t);
+  });
+  $('#admin-token-in').addEventListener('keydown', e => {
+    if (e.key === 'Enter') $('#admin-login-btn').click();
+  });
+  setTimeout(() => $('#admin-token-in')?.focus(), 50);
+}
+
+async function loadTelemetry(token) {
+  $('#admin-body').innerHTML = `<div class="empty">Cargando telemetría…</div>`;
+  let res;
+  try {
+    res = await fetch('api/admin/telemetry', { headers: { 'x-admin-token': token }, cache: 'no-store' });
+  } catch { renderAdminLogin('No se pudo conectar con el servidor.'); return; }
+  if (res.status === 401) { sessionStorage.removeItem(ADMIN_TOKEN_KEY); renderAdminLogin('Clave incorrecta.'); return; }
+  if (res.status === 503) { sessionStorage.removeItem(ADMIN_TOKEN_KEY); renderAdminLogin('La telemetría no está configurada en el servidor (falta ADMIN_TOKEN).'); return; }
+  if (!res.ok) { renderAdminLogin('Error del servidor al obtener la telemetría.'); return; }
+  sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  try { renderTelemetry(await res.json()); }
+  catch { renderAdminLogin('No se pudo leer la respuesta del servidor.'); }
+}
+
+function fmtDate(iso) {
+  try { return new Date(iso).toLocaleString('es-AR'); } catch { return iso; }
+}
+
+function renderTelemetry(t) {
+  const pct = ((t.avgCompletion || 0) * 100).toFixed(1);
+  const totals = t.totals || { have: 0, need: 0, repe: 0 };
+  const albums = (t.albums || []).map(a =>
+    `<div class="tele-row"><span>${escapeHtml(a.name)}</span><b>${a.count}</b></div>`).join('')
+    || '<div class="empty" style="padding:12px">Sin listas publicadas todavía.</div>';
+  const spare = (t.topSpare || []).map(s =>
+    `<div class="tele-row"><span>${escapeHtml(s.key)}</span><b>×${s.count}</b></div>`).join('')
+    || '<div class="empty" style="padding:12px">Nadie cargó repetidas todavía.</div>';
+
+  $('#admin-body').innerHTML = `
+    <div class="tele-grid">
+      <div class="tele-tile"><div class="tele-num">${t.collections}</div><div class="tele-lbl">Listas publicadas</div></div>
+      <div class="tele-tile"><div class="tele-num">${t.active7d}</div><div class="tele-lbl">Activas (7 días)</div></div>
+      <div class="tele-tile"><div class="tele-num">${t.new24h}</div><div class="tele-lbl">Nuevas (24 h)</div></div>
+      <div class="tele-tile"><div class="tele-num">${t.new7d}</div><div class="tele-lbl">Nuevas (7 días)</div></div>
+      <div class="tele-tile"><div class="tele-num">${totals.have}</div><div class="tele-lbl">Figuritas pegadas</div></div>
+      <div class="tele-tile"><div class="tele-num">${totals.repe}</div><div class="tele-lbl">Repes en circulación</div></div>
+      <div class="tele-tile"><div class="tele-num">${totals.need}</div><div class="tele-lbl">Faltantes totales</div></div>
+      <div class="tele-tile"><div class="tele-num">${pct}%</div><div class="tele-lbl">Completado promedio</div></div>
+    </div>
+    <div class="tele-sec"><h3>Álbumes</h3>${albums}</div>
+    <div class="tele-sec"><h3>Top repes en circulación</h3>${spare}</div>
+    <div class="tele-ts">Generado ${escapeHtml(fmtDate(t.generatedAt))}</div>
+    <div class="tele-foot">
+      <button class="btn" id="admin-refresh">↻ Actualizar</button>
+      <button class="btn ghost" id="admin-logout">Cerrar sesión</button>
+    </div>`;
+  $('#admin-refresh').addEventListener('click', () => {
+    const tok = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (tok) loadTelemetry(tok);
+  });
+  $('#admin-logout').addEventListener('click', () => {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    renderAdminLogin();
+  });
+}
+
 /* ---------- Navegación por tabs ---------- */
 function switchTab(name) {
   $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -983,6 +1075,19 @@ function init() {
       loadCommunity();
     });
   }
+
+  // Menú de Admin: se abre tocando la versión del pie.
+  const verEl = $('#app-version');
+  if (verEl) {
+    verEl.style.cursor = 'pointer';
+    verEl.title = 'Admin';
+    verEl.addEventListener('click', openAdmin);
+  }
+  $('#admin-close').addEventListener('click', closeAdmin);
+  $('#admin-overlay').addEventListener('click', e => { if (e.target.id === 'admin-overlay') closeAdmin(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$('#admin-overlay').classList.contains('hidden')) closeAdmin();
+  });
 
   checkIncomingUrl();
   setupPWA();

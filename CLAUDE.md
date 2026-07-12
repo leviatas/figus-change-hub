@@ -80,6 +80,8 @@ the "count optional stickers in totals" checkbox.
 ### Server API (`server/index.js`)
 Serves the static site from `STATIC_DIR` (default repo root) and exposes:
 - `GET  /api/health`
+- `GET  /api/admin/telemetry` — métricas agregadas de la comunidad (solo admin;
+  requiere header `x-admin-token` = `ADMIN_TOKEN`; 503 si no está configurado)
 - `GET  /api/collections` — list (max 200, newest first)
 - `GET  /api/collections/:id`
 - `POST /api/collections` — publish → returns `{ id, editToken }`
@@ -151,4 +153,5 @@ through the self-hosted runner in `.github/workflows/deploy.yml` (needs the
 | `POSTGRES_USER` | `figus` | DB user |
 | `POSTGRES_PASSWORD` | `figus` | DB password (prod.sh generates a secure one) |
 | `POSTGRES_DB` | `figus` | DB name |
+| `ADMIN_TOKEN` | — | Clave del menú de Admin (telemetría). Sin valor, el panel queda deshabilitado. prod.sh genera una segura al crear el `.env` |
 | `TUNNEL_TOKEN` | — | Cloudflare Tunnel token; if set, prod.sh runs cloudflared |

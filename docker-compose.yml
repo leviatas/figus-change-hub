@@ -30,6 +30,8 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-figus}:${POSTGRES_PASSWORD:-figus}@db:5432/${POSTGRES_DB:-figus}
       PORT: 3000
+      # Clave del menú de Admin (telemetría). Sin valor, el panel queda deshabilitado.
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
     expose:
       - "3000"
     depends_on:

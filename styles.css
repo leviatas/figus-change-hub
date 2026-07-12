@@ -238,6 +238,48 @@ pre.export {
 
 .hidden { display: none !important; }
 
+/* Modal (menú de Admin / telemetría) */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(6,9,15,.72); backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal-overlay.hidden { display: none !important; }
+.modal {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px 16px 0 0; width: 100%; max-width: 520px;
+  max-height: 88vh; overflow: auto; box-shadow: var(--shadow);
+  animation: slideup .22s ease;
+}
+@media (min-width: 560px) {
+  .modal-overlay { align-items: center; padding: 20px; }
+  .modal { border-radius: 16px; }
+}
+@keyframes slideup { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-head {
+  position: sticky; top: 0; z-index: 1; background: var(--card);
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px; border-bottom: 1px solid var(--line);
+}
+.modal-head h2 { margin: 0; font-size: 1.02rem; }
+.modal-head .x { margin-left: auto; color: var(--muted); cursor: pointer; font-size: 1.2rem; padding: 0 4px; }
+.modal-body { padding: 16px; }
+.admin-error { color: var(--red); font-size: .84rem; margin: 0 0 12px; }
+
+/* Telemetría */
+.tele-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.tele-tile { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.tele-num { font-size: 1.5rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tele-lbl { font-size: .74rem; color: var(--muted); margin-top: 3px; }
+.tele-sec { margin-top: 18px; }
+.tele-sec h3 { font-size: .76rem; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin: 0 0 6px; }
+.tele-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+.tele-row:last-child { border-bottom: none; }
+.tele-row span { color: var(--text); word-break: break-word; }
+.tele-row b { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tele-ts { color: var(--muted); font-size: .74rem; margin-top: 14px; text-align: center; }
+.tele-foot { margin-top: 12px; display: flex; gap: 8px; }
+
 footer.foot { text-align: center; color: var(--muted); font-size: .74rem; padding: 20px 0; }
 footer.foot .credit { margin-top: 6px; }
 footer.foot .ver { font-variant-numeric: tabular-nums; letter-spacing: .3px; }
