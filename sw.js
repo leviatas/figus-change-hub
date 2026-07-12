@@ -7,15 +7,16 @@
  *   - Resto de estáticos del mismo origen: stale-while-revalidate.
  * =========================================================================== */
 
-// La versión (fuente única) define el nombre de la caché: al subirla, el
-// `activate` de abajo borra las cachés viejas y la app se actualiza.
-importScripts('version.js');
-const CACHE = 'fch-shell-v' + (self.APP_VERSION || '0');
+// La versión (fuente única) está escrita a mano en el pie de index.html y llega
+// hasta acá por la URL de registro (?v=…), que arma app.js. Define el nombre de
+// la caché: al subirla, el `activate` de abajo borra las cachés viejas y la app
+// se actualiza.
+const APP_VERSION = new URL(self.location).searchParams.get('v') || '0';
+const CACHE = 'fch-shell-v' + APP_VERSION;
 const SHELL = [
   '.',
   'index.html',
   'styles.css',
-  'version.js',
   'data.js',
   'app.js',
   'manifest.webmanifest',
