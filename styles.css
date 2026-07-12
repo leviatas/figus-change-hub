@@ -229,5 +229,6 @@ pre.export {
 
 footer.foot { text-align: center; color: var(--muted); font-size: .74rem; padding: 20px 0; }
 footer.foot .credit { margin-top: 6px; }
+footer.foot .ver { font-variant-numeric: tabular-nums; letter-spacing: .3px; }
 footer.foot .credit a { color: var(--muted); text-decoration: underline; }
 footer.foot .credit a:hover { color: var(--text); }

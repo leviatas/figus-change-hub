@@ -35,8 +35,7 @@ Express server.
 ## Layout
 
 ```
-index.html              Page structure; loads version.js, data.js, app.js (in that order)
-version.js              SINGLE SOURCE OF TRUTH for the app version (semver)
+index.html              Page structure; loads data.js then app.js. Also holds the app version as a literal in the footer (#app-version)
 data.js                 Album definition: sections, teams, emojis, sticker ranges → globals ALBUM, ALBUM_NAME, ALBUM_TOTAL
 app.js                  All client logic (~950 lines): state, album render, import/export, share links, trade matching, community, PWA
 styles.css              Mobile-first, dark-mode styles
@@ -95,17 +94,24 @@ discrete `PG*` env vars.
 
 ## Versioning — read before shipping
 
-`version.js` sets `self.APP_VERSION` and is the **single source of truth**:
-- Shown next to the title (`#app-version`).
-- Names the service-worker cache (`fch-shell-vX.Y.Z`). Bumping it makes `sw.js`
-  drop old caches and serve fresh files instead of the stale first install.
-- Triggers the "✨ Hay una versión nueva · Actualizar" prompt; the SW
-  self-activates (`skipWaiting` + `clients.claim`) and the page reloads once.
+The app version is **hard-coded as a literal in the footer of `index.html`**
+(`<span id="app-version">v1.1.3</span>`) — this is the **single source of
+truth**. There is no `version.js` or any separate version/config file. The value
+flows outward from that one span:
+- **Display**: it's already visible in the footer as plain HTML.
+- **Service worker**: `app.js` reads the span from the DOM
+  (`#app-version`), strips the leading `v`, and registers the SW as
+  `sw.js?v=1.1.3`. `sw.js` reads that `?v=` from its own registration URL
+  (`new URL(self.location).searchParams.get('v')`) and uses it to name its cache
+  (`fch-shell-vX.Y.Z`). Bumping the footer therefore changes the SW URL, so the
+  browser always detects the new SW, drops old caches, and serves fresh files.
+- **Update prompt**: the new SW self-activates (`skipWaiting` +
+  `clients.claim`) and the page reloads once ("✨ Hay una versión nueva").
 
-**When you ship any user-visible change, bump `version.js`** following semver
-(patch = fixes, minor = compatible features, major = big changes). It's the only
-place to touch. State is safe across SW updates because it all lives in
-`localStorage`.
+**When you ship any user-visible change, edit the version literal in
+`index.html`'s footer** following semver (patch = fixes, minor = compatible
+features, major = big changes). It's the only place to touch. State is safe
+across SW updates because it all lives in `localStorage`.
 
 ## Gotchas — read carefully
 
@@ -114,13 +120,8 @@ place to touch. State is safe across SW updates because it all lives in
   1. Reference it in `index.html` (or wherever it's used).
   2. Add it to the `SHELL` array in `sw.js` (so it's cached for offline).
   3. Add it to the `COPY` lines in `Dockerfile` (so it ships in the image).
-- ⚠️ **`version.js` is currently NOT copied in the `Dockerfile`** (only
-  `index.html app.js data.js styles.css` + PWA assets are). In the static/GitHub
-  Pages mode it's served fine, but the Docker image is missing it, which breaks
-  the version badge and `sw.js`'s `importScripts('version.js')`. If you touch the
-  Dockerfile or the versioning flow, fix this by adding `version.js` to the COPY.
-- Script load order in `index.html` matters: `version.js` → `data.js` → `app.js`
-  (app.js depends on the globals the first two define).
+- Script load order in `index.html` matters: `data.js` → `app.js` (app.js
+  depends on the `ALBUM`/`ALBUM_NAME`/`ALBUM_TOTAL` globals data.js defines).
 - The SW never caches `/api/...` (community must be live data).
 - Icons are `*.png` but explicitly un-ignored in `.gitignore`/`.dockerignore` —
   keep those negation rules if you add PWA assets.

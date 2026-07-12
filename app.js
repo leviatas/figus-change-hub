@@ -760,10 +760,12 @@ function setupPWA() {
         window.location.reload();
       });
 
-      // Registramos con la versión en la URL: así, cada release cambia la URL
-      // del script y el navegador SIEMPRE detecta el SW nuevo (aunque sw.js no
-      // cambie byte a byte, porque la versión vive en version.js).
-      const swUrl = 'sw.js' + (self.APP_VERSION ? '?v=' + self.APP_VERSION : '');
+      // La versión (fuente única) está escrita a mano en el pie de index.html.
+      // La leemos del DOM y la pasamos en la URL del SW: así, cada release cambia
+      // la URL del script y el navegador SIEMPRE detecta el SW nuevo (aunque
+      // sw.js no cambie byte a byte). El propio sw.js lee esa versión del ?v=.
+      const version = ($('#app-version')?.textContent || '').trim().replace(/^v/i, '');
+      const swUrl = 'sw.js' + (version ? '?v=' + encodeURIComponent(version) : '');
       navigator.serviceWorker.register(swUrl).catch(() => {});
     });
   }
@@ -798,7 +800,7 @@ function setupPWA() {
 /* ---------- Init & eventos ---------- */
 function init() {
   $('#album-name').textContent = ALBUM_NAME;
-  // (La versión del pie la escribe version.js, sin depender de este bundle.)
+  // (La versión ya está escrita a mano en el pie de index.html; no la tocamos.)
   // Perfil
   $('#profile-name').value = profile.name || '';
   $('#profile-contact').value = profile.contact || '';
