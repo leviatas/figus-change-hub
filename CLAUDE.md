@@ -36,6 +36,7 @@ Express server.
 
 ```
 index.html              Page structure; loads data.js then app.js. Also holds the app version as a literal in the footer (#app-version)
+legal.html              Standalone legal page (terms of use / privacy / trademark disclaimer / liability); linked from the footer
 data.js                 Album definition: sections, teams, emojis, sticker ranges → globals ALBUM, ALBUM_NAME, ALBUM_TOTAL
 app.js                  All client logic (~950 lines): state, album render, import/export, share links, trade matching, community, PWA
 styles.css              Mobile-first, dark-mode styles

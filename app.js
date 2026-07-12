@@ -647,10 +647,24 @@ async function apiHealth() {
   catch { return false; }
 }
 
+const PUB_CONSENT_KEY = 'fch:v1:pubConsent';
+
 async function publishMine() {
   if (!profile.name && !profile.contact) {
     toast('Cargá tu nombre o contacto antes de publicar');
     return;
+  }
+  // Consentimiento informado (una sola vez): al publicar, nombre y contacto
+  // quedan visibles para toda la comunidad. Ver legal.html.
+  if (!load(PUB_CONSENT_KEY, false)) {
+    const ok = confirm(
+      'Al publicar, tu nombre y tu contacto quedan VISIBLES para cualquier persona ' +
+      'que abra la app (muro de Comunidad).\n\n' +
+      'Publicá solo un contacto que no te moleste hacer público.\n\n' +
+      '¿Querés publicar tu lista?'
+    );
+    if (!ok) return;
+    save(PUB_CONSENT_KEY, true);
   }
   const payload = { name: profile.name || '', contact: profile.contact || '', album: ALBUM_NAME, data: counts, stats: stats() };
   const pub = load(PUBLISH_KEY, null);
