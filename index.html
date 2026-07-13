@@ -49,6 +49,16 @@
 
     <div id="notice"></div>
 
+    <!-- Banner de instalación (PWA). Aparece cuando se puede instalar. -->
+    <div id="install-banner" class="install-banner hidden">
+      <span class="ib-icon">⚽</span>
+      <div class="ib-text" id="install-banner-text">
+        <b>Instalá Figus Hub 📲</b><span>Abrila desde el ícono y usala sin conexión</span>
+      </div>
+      <button class="btn primary" id="install-banner-btn">Instalar</button>
+      <span class="ib-x" id="install-banner-dismiss" title="Ahora no">✕</span>
+    </div>
+
     <!-- ALBUM -->
     <section id="tab-album" class="tab-content">
       <div class="legend">
@@ -199,7 +209,7 @@
       <!-- Versión de la app (fuente única): escrita a mano acá. Al publicar
            cambios, subí este número (semver). app.js la lee del DOM para
            versionar el service worker; no hay ningún archivo de versión aparte. -->
-      <div class="credit"><a href="legal.html">Términos y privacidad</a> · Hecho con ❤️ por Edu · <a href="https://dev.leviatas.com" target="_blank" rel="noopener">dev.leviatas.com</a> · <span class="ver" id="app-version">v1.4.1</span></div>
+      <div class="credit"><a href="legal.html">Términos y privacidad</a> · Hecho con ❤️ por Edu · <a href="https://dev.leviatas.com" target="_blank" rel="noopener">dev.leviatas.com</a> · <span class="ver" id="app-version">v1.4.2</span></div>
     </footer>
   </div>
 
