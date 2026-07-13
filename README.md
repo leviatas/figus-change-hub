@@ -1,5 +1,9 @@
 # Figus Change Hub ⚽
 
+![Versión](https://img.shields.io/badge/versión-v1.4.2-3b82f6)
+![PWA](https://img.shields.io/badge/PWA-instalable%20·%20offline-22c55e)
+![Sin frameworks](https://img.shields.io/badge/vanilla-JS-f59e0b)
+
 Sitio para llevar tu álbum de figuritas **Usa Mex Can 26**, marcar lo que tenés,
 lo que te falta y tus repetidas, y **intercambiar con otras personas**.
 
@@ -62,10 +66,11 @@ invasivas ni cuentas obligatorias.
 El sitio es una **PWA**: se puede instalar en el teléfono y abrir desde el ícono,
 y funciona sin conexión (el álbum vive en tu dispositivo).
 
-- **Android (Chrome/Edge):** entrá al sitio y usá el botón **⬇️ Instalar app**
-  del tab *Importar*, o el menú ⋮ → *Instalar app* / *Agregar a la pantalla
-  principal*.
-- **iPhone (Safari):** botón *Compartir* → *Agregar a inicio*.
+- **Android / PC (Chrome/Edge):** cuando se puede instalar aparece un **banner
+  "Instalar"** abajo; también está el botón **⬇️ Instalar app** del tab *Importar*
+  o el menú del navegador (⋮ → *Instalar app* / *Agregar a la pantalla principal*).
+- **iPhone (Safari):** botón *Compartir* → *Agregar a inicio* (el banner te lo
+  recuerda, ya que iOS no ofrece instalación automática).
 
 Requisitos: servir el sitio por **HTTPS** (por ejemplo detrás del Cloudflare
 Tunnel de producción). La instalación se apoya en `manifest.webmanifest`,
@@ -150,6 +155,7 @@ Variables (en `.env`):
 | `POSTGRES_USER` | `figus` | Usuario de la BD |
 | `POSTGRES_PASSWORD` | `figus` | Contraseña de la BD (en producción la genera `prod.sh`) |
 | `POSTGRES_DB` | `figus` | Nombre de la BD |
+| `ADMIN_TOKEN` | — | Clave del menú de Admin (telemetría/moderación). Sin valor, el panel queda deshabilitado. `prod.sh` genera una segura si falta y la muestra en consola |
 | `TUNNEL_TOKEN` | — | Token del Cloudflare Tunnel; si está, `prod.sh` levanta `cloudflared` |
 
 #### API
@@ -160,25 +166,42 @@ Variables (en `.env`):
 - `PUT  /api/collections/:id` — actualizar (requiere `editToken`).
 - `DELETE /api/collections/:id` — quitar (requiere `editToken`).
 
+Endpoints de **Admin** (requieren el header `x-admin-token` = `ADMIN_TOKEN`;
+responden `503` si no está configurado):
+- `GET    /api/admin/telemetry` — métricas agregadas de la comunidad.
+- `GET    /api/admin/collections` — lista de publicaciones para moderar.
+- `DELETE /api/admin/collections/:id` — borra cualquier publicación (sin `editToken`).
+
 El `editToken` se guarda en tu navegador; nadie puede editar/borrar tu
-publicación sin él.
+publicación sin él (salvo desde el menú de Admin).
 
 ## Versionado 🏷️
 
-La versión de la app vive en **`version.js`** (una sola línea: `self.APP_VERSION`)
-y es la **fuente única**:
+La versión de la app está **escrita a mano en el pie de `index.html`**
+(`<span id="app-version">vX.Y.Z</span>`) y es la **fuente única**:
 
-- Se muestra en el **pie de página** (`vX.Y.Z`), así sabés qué versión estás usando.
-- Nombra la **caché del service worker** (`fch-shell-vX.Y.Z`). Al subir el número,
-  el `sw.js` borra la caché vieja y sirve los archivos nuevos, en vez de quedar
-  pegado a la primera instalación de la PWA.
-- Cuando hay una versión nueva y tenés la app abierta, aparece un aviso discreto
-  **"✨ Hay una versión nueva · Actualizar"**. Al tocarlo, el service worker
-  activa la versión nueva y la página se recarga una vez.
+- Se muestra en el **pie de página**, así sabés qué versión estás usando (y
+  tocándola se abre el menú de **Admin**, ver abajo).
+- `app.js` la lee del DOM y registra el service worker como `sw.js?v=X.Y.Z`, que
+  a su vez nombra la **caché** (`fch-shell-vX.Y.Z`). Al subir el número, el
+  navegador detecta el SW nuevo, borra la caché vieja y sirve los archivos frescos.
+- La actualización es **automática**: el service worker nuevo se activa solo
+  (`skipWaiting` + `clients.claim`) y la página se recarga una vez. Tu álbum no se
+  pierde: vive en `localStorage`.
 
-**Al publicar cambios**, subí el número en `version.js` siguiendo *semver*
-(`mayor.menor.parche`): parche para arreglos, menor para funciones nuevas
-compatibles, mayor para cambios grandes. Es el único lugar que hay que tocar.
+**Al publicar cambios**, subí el número en el pie de `index.html` siguiendo
+*semver* (`mayor.menor.parche`): parche para arreglos, menor para funciones nuevas
+compatibles, mayor para cambios grandes. Es el único lugar que hay que tocar (y,
+si querés, el badge de versión al principio de este README).
+
+## Menú de Admin · Telemetría 🔐
+
+Tocando la **versión** en el pie se abre el menú de **Admin**. Pide una clave
+(`ADMIN_TOKEN`) y muestra métricas agregadas de la comunidad (listas publicadas,
+activas, figuritas pegadas/repes/faltantes, top de repetidas, etc.) y permite
+**borrar publicaciones** para moderar el muro. Requiere el servidor con base de
+datos. Sin `ADMIN_TOKEN` configurado, el panel queda deshabilitado. En producción,
+`prod.sh` genera una clave segura si falta y la muestra en consola al ejecutarse.
 
 ## Ajustar el álbum
 
@@ -208,8 +231,10 @@ simplemente no aparece y el resto sigue funcionando.
 
 ## Archivos
 
-- `index.html` — estructura de la página.
-- `version.js` — versión de la app (fuente única); la usan la página y el `sw.js`.
+- `index.html` — estructura de la página. Incluye la **versión** como literal en
+  el pie (`#app-version`, fuente única; la leen `app.js` y el `sw.js`).
+- `legal.html` — página legal (términos de uso, privacidad, aviso de marcas);
+  enlazada desde el pie.
 - `styles.css` — estilos (mobile-first, modo oscuro).
 - `data.js` — definición del álbum (secciones, selecciones, emojis, rangos).
 - `app.js` — lógica del cliente (estado, import/export, enlaces, comparación, comunidad, PWA).
