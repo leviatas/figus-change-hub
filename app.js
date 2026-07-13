@@ -921,6 +921,77 @@ function switchTab(name) {
 
 /* ---------- PWA: service worker + instalación ---------- */
 let deferredInstallPrompt = null;
+const INSTALL_DISMISS_KEY = 'fch:v1:installDismissed';
+const INSTALLED_KEY = 'fch:v1:installed';
+
+// Registramos 'beforeinstallprompt' a nivel módulo (NO dentro de init): Chrome
+// puede dispararlo antes de que init corra y, si el listener se agrega tarde, el
+// evento se pierde y el botón/banner de instalar nunca aparece. app.js se carga
+// al final del <body>, así que los elementos del DOM ya existen cuando corre esto.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  refreshInstallUI();
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  try { localStorage.setItem(INSTALLED_KEY, '1'); } catch {}
+  refreshInstallUI();
+  toast('🎉 App instalada', true);
+});
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+function appInstalled() {
+  return isStandalone() || localStorage.getItem(INSTALLED_KEY) === '1';
+}
+
+// Muestra u oculta el banner prominente y el botón de "Importar" según el estado.
+function refreshInstallUI() {
+  const btn = $('#install-btn');
+  const banner = $('#install-banner');
+  const installed = appInstalled();
+
+  // Botón permanente dentro de "Importar": visible salvo que ya esté instalada.
+  if (btn) btn.style.display = installed ? 'none' : '';
+
+  if (!banner) return;
+  const dismissed = sessionStorage.getItem(INSTALL_DISMISS_KEY) === '1';
+  const canPrompt = !!deferredInstallPrompt;
+  const iosHint = isIOS() && !installed;
+  const actionBtn = $('#install-banner-btn');
+  const textEl = $('#install-banner-text');
+
+  // Ocultamos si ya está instalada, si lo descartaron, o si no hay forma de
+  // instalar (ni prompt nativo ni iOS).
+  if (installed || dismissed || (!canPrompt && !iosHint)) {
+    banner.classList.add('hidden');
+    return;
+  }
+  if (canPrompt) {
+    if (textEl) textEl.innerHTML = '<b>Instalá Figus Hub 📲</b><span>Abrila desde el ícono y usala sin conexión</span>';
+    if (actionBtn) actionBtn.style.display = '';
+  } else { // iOS: no hay prompt nativo, mostramos el cómo
+    if (textEl) textEl.innerHTML = '<b>Instalá Figus Hub 📲</b><span>Tocá Compartir y luego “Agregar a inicio”</span>';
+    if (actionBtn) actionBtn.style.display = 'none';
+  }
+  banner.classList.remove('hidden');
+}
+
+async function triggerInstall() {
+  if (!deferredInstallPrompt) {
+    toast(isIOS() ? 'En iPhone: Compartir → Agregar a inicio 📲' : 'Usá el menú del navegador para instalar 📲');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  try { await deferredInstallPrompt.userChoice; } catch {}
+  deferredInstallPrompt = null;
+  refreshInstallUI();
+}
 
 function setupPWA() {
   // Registrar el service worker (solo con http/https; no en file://)
@@ -949,31 +1020,21 @@ function setupPWA() {
     });
   }
 
-  const btn = $('#install-btn');
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    if (btn) btn.style.display = '';
-  });
-  if (btn) btn.addEventListener('click', async () => {
-    if (!deferredInstallPrompt) { toast('Usá el menú del navegador para instalar 📲'); return; }
-    deferredInstallPrompt.prompt();
-    try { await deferredInstallPrompt.userChoice; } catch {}
-    deferredInstallPrompt = null;
-    btn.style.display = 'none';
-  });
-  window.addEventListener('appinstalled', () => {
-    deferredInstallPrompt = null;
-    if (btn) btn.style.display = 'none';
-    toast('🎉 App instalada', true);
+  // Botón de instalar (dentro de "Importar") y banner prominente comparten acción.
+  $('#install-btn')?.addEventListener('click', triggerInstall);
+  $('#install-banner-btn')?.addEventListener('click', triggerInstall);
+  $('#install-banner-dismiss')?.addEventListener('click', () => {
+    sessionStorage.setItem(INSTALL_DISMISS_KEY, '1');
+    $('#install-banner')?.classList.add('hidden');
   });
 
   // Si ya está corriendo instalada, aclaramos la ayuda.
-  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  if (standalone) {
+  if (isStandalone()) {
     const help = $('#install-help');
     if (help) help.textContent = 'Ya estás usando la app instalada. 🎉';
   }
+
+  refreshInstallUI();
 }
 
 /* ---------- Init & eventos ---------- */

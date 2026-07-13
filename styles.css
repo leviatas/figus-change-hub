@@ -227,6 +227,22 @@ pre.export {
 
 .hidden { display: none !important; }
 
+/* Banner de instalación (PWA) */
+.install-banner {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+  z-index: 65; width: calc(100% - 24px); max-width: 520px;
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, #16233d, #1a2f22);
+  border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+.install-banner .ib-icon { font-size: 1.7rem; line-height: 1; }
+.install-banner .ib-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.install-banner .ib-text b { font-size: .9rem; }
+.install-banner .ib-text span { font-size: .76rem; color: var(--muted); }
+.install-banner #install-banner-btn { flex: none; padding: 9px 15px; }
+.install-banner .ib-x { flex: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 0 2px; }
+
 /* Modal (menú de Admin / telemetría) */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 80;
