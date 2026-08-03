@@ -45,6 +45,7 @@ async function initDb() {
       edit_token  UUID NOT NULL DEFAULT gen_random_uuid(),
       name        TEXT NOT NULL DEFAULT '',
       contact     TEXT NOT NULL DEFAULT '',
+      zone        TEXT NOT NULL DEFAULT '',
       album       TEXT NOT NULL DEFAULT '',
       data        JSONB NOT NULL DEFAULT '{}'::jsonb,
       stats       JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -52,6 +53,8 @@ async function initDb() {
       updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+  // Instalaciones existentes: la tabla ya puede existir sin la columna `zone`.
+  await pool.query(`ALTER TABLE collections ADD COLUMN IF NOT EXISTS zone TEXT NOT NULL DEFAULT '';`);
   await pool.query(`CREATE INDEX IF NOT EXISTS collections_updated_idx ON collections (updated_at DESC);`);
   console.log('[db] listo');
 }
@@ -102,11 +105,12 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 app.get('/api/admin/telemetry', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const r = await pool.query(`SELECT album, stats, data, created_at, updated_at FROM collections`);
+    const r = await pool.query(`SELECT album, zone, stats, data, created_at, updated_at FROM collections`);
     const now = Date.now();
     const DAY = 86400000;
     let new24h = 0, new7d = 0, active7d = 0;
     const albums = new Map();      // nombre de álbum -> cantidad de listas
+    const zones = new Map();       // zona -> cantidad de listas
     const totals = { have: 0, need: 0, repe: 0 };
     const spare = new Map();       // "SECC #n" -> repetidas en circulación
 
@@ -119,6 +123,9 @@ app.get('/api/admin/telemetry', async (req, res) => {
 
       const album = (row.album || '').trim() || '(sin nombre)';
       albums.set(album, (albums.get(album) || 0) + 1);
+
+      const zone = (row.zone || '').trim();
+      if (zone) zones.set(zone, (zones.get(zone) || 0) + 1);
 
       const s = row.stats || {};
       totals.have += num(s.have);
@@ -143,6 +150,9 @@ app.get('/api/admin/telemetry', async (req, res) => {
     const albumList = Array.from(albums.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
+    const zoneList = Array.from(zones.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
     const topSpare = Array.from(spare.entries())
       .map(([key, count]) => ({ key, count }))
       .sort((a, b) => b.count - a.count)
@@ -153,6 +163,7 @@ app.get('/api/admin/telemetry', async (req, res) => {
       new24h, new7d, active7d,
       totals, avgCompletion,
       albums: albumList,
+      zones: zoneList,
       topSpare,
       generatedAt: new Date().toISOString(),
     });
@@ -164,7 +175,7 @@ app.get('/api/admin/collections', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const r = await pool.query(
-      `SELECT id, name, contact, album, stats, created_at, updated_at
+      `SELECT id, name, contact, zone, album, stats, created_at, updated_at
          FROM collections ORDER BY updated_at DESC LIMIT $1`, [MAX_LIST]);
     res.json(r.rows);
   } catch (e) { console.error(e); res.status(500).json({ error: 'db' }); }
@@ -184,7 +195,7 @@ app.delete('/api/admin/collections/:id', async (req, res) => {
 app.get('/api/collections', async (_req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id, name, contact, album, data, stats, updated_at
+      `SELECT id, name, contact, zone, album, data, stats, updated_at
          FROM collections ORDER BY updated_at DESC LIMIT $1`, [MAX_LIST]);
     res.json(r.rows);
   } catch (e) { console.error(e); res.status(500).json({ error: 'db' }); }
@@ -194,7 +205,7 @@ app.get('/api/collections', async (_req, res) => {
 app.get('/api/collections/:id', async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id, name, contact, album, data, stats, updated_at
+      `SELECT id, name, contact, zone, album, data, stats, updated_at
          FROM collections WHERE id = $1`, [req.params.id]);
     if (!r.rowCount) return res.status(404).json({ error: 'not_found' });
     res.json(r.rows[0]);
@@ -207,13 +218,14 @@ app.post('/api/collections', async (req, res) => {
   if (data === null) return res.status(400).json({ error: 'bad_data' });
   const name = clean(req.body.name, 60);
   const contact = clean(req.body.contact, 120);
+  const zone = clean(req.body.zone, 60);
   const album = clean(req.body.album, 60);
   const stats = (req.body.stats && typeof req.body.stats === 'object') ? req.body.stats : {};
   try {
     const r = await pool.query(
-      `INSERT INTO collections (name, contact, album, data, stats)
-       VALUES ($1,$2,$3,$4,$5) RETURNING id, edit_token`,
-      [name, contact, album, data, stats]);
+      `INSERT INTO collections (name, contact, zone, album, data, stats)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, edit_token`,
+      [name, contact, zone, album, data, stats]);
     res.status(201).json({ id: r.rows[0].id, editToken: r.rows[0].edit_token });
   } catch (e) { console.error(e); res.status(500).json({ error: 'db' }); }
 });
@@ -226,13 +238,14 @@ app.put('/api/collections/:id', async (req, res) => {
   if (!token) return res.status(400).json({ error: 'missing_token' });
   const name = clean(req.body.name, 60);
   const contact = clean(req.body.contact, 120);
+  const zone = clean(req.body.zone, 60);
   const album = clean(req.body.album, 60);
   const stats = (req.body.stats && typeof req.body.stats === 'object') ? req.body.stats : {};
   try {
     const r = await pool.query(
-      `UPDATE collections SET name=$1, contact=$2, album=$3, data=$4, stats=$5, updated_at=now()
-        WHERE id=$6 AND edit_token=$7 RETURNING id`,
-      [name, contact, album, data, stats, req.params.id, token]);
+      `UPDATE collections SET name=$1, contact=$2, zone=$3, album=$4, data=$5, stats=$6, updated_at=now()
+        WHERE id=$7 AND edit_token=$8 RETURNING id`,
+      [name, contact, zone, album, data, stats, req.params.id, token]);
     if (!r.rowCount) return res.status(404).json({ error: 'not_found_or_forbidden' });
     res.json({ id: r.rows[0].id });
   } catch (e) { res.status(400).json({ error: 'bad_request' }); }

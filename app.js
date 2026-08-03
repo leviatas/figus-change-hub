@@ -8,12 +8,16 @@
 const STORE_KEY = 'fch:v1:counts';
 const PROFILE_KEY = 'fch:v1:profile';
 const UI_KEY = 'fch:v1:ui';
+const ZONES_KEY = 'fch:v1:zones';
 
 /* ---------- Estado ---------- */
 // counts[sectionId][sticker] = cantidad que tenés (0 = falta, 1 = tengo, 2+ = repes)
 let counts = load(STORE_KEY, {});
-let profile = load(PROFILE_KEY, { name: '', contact: '' });
+let profile = load(PROFILE_KEY, { name: '', contact: '', zone: '' });
 let ui = load(UI_KEY, { collapsed: {}, filter: 'all', search: '', countOptional: false });
+// Zonas vistas hasta ahora (propia, de gente comparada/importada, de la Comunidad).
+// Alimenta el datalist de "Zona" para que funcione como un ddl que se arma solo.
+let zones = load(ZONES_KEY, []);
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -37,6 +41,23 @@ function setCount(sectionId, sticker, n) {
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 function sectionById(id) { return ALBUM.find(s => s.id === id); }
+
+/* ---------- Zonas (ddl que se arma con lo que va apareciendo) ---------- */
+// Suma una zona nueva a la lista de opciones (si no estaba) y refresca el datalist.
+function rememberZone(z) {
+  z = (z || '').trim();
+  if (!z) return;
+  if (zones.some(x => x.toLowerCase() === z.toLowerCase())) return;
+  zones.push(z);
+  save(ZONES_KEY, zones);
+  renderZoneOptions();
+}
+function renderZoneOptions() {
+  const dl = $('#zona-list');
+  if (!dl) return;
+  dl.innerHTML = zones.slice().sort((a, b) => a.localeCompare(b, 'es'))
+    .map(z => `<option value="${escapeHtml(z)}"></option>`).join('');
+}
 
 /* ---------- Estadísticas ---------- */
 // ¿Una sección cuenta para el total/faltantes? Las opcionales (ej.: Coca-Cola)
@@ -221,7 +242,7 @@ function listByKind(kind) {
 }
 
 function buildExport(kind) {
-  const header = `Intercambio de Figuritas\n${ALBUM_NAME}`;
+  const header = `Intercambio de Figuritas\n${ALBUM_NAME}` + (profile.zone ? `\nZona: ${profile.zone}` : '');
   if (kind === 'ambas') {
     const faltan = listByKind('faltan');
     const repes = listByKind('repetidas');
@@ -245,6 +266,7 @@ function encodeState() {
     v: 1,
     n: profile.name || '',
     c: profile.contact || '',
+    z: profile.zone || '',
     a: ALBUM_NAME,
     d: counts, // { sectionId: { sticker: count } }
   };
@@ -276,7 +298,7 @@ function parseIncoming(text) {
   if (token) {
     try {
       const obj = JSON.parse(b64DecodeUnicode(token));
-      if (obj && obj.d) return { name: obj.n || '', contact: obj.c || '', album: obj.a || '', counts: obj.d };
+      if (obj && obj.d) return { name: obj.n || '', contact: obj.c || '', zone: obj.z || '', album: obj.a || '', counts: obj.d };
     } catch (e) { /* sigue al parser de texto */ }
   }
 
@@ -296,7 +318,7 @@ function buildLabelIndex() {
 
 function parseTextList(text) {
   const lines = text.split(/\r?\n/);
-  const result = { name: '', contact: '', album: '', counts: {} };
+  const result = { name: '', contact: '', zone: '', album: '', counts: {} };
   // Sección "modo": lo que trae el otro. Interpretamos su lista de repetidas
   // como cosas que puede DAR, y sus faltantes como cosas que NECESITA.
   // Guardamos con convención: count 0 = falta, count 2 = repe (una).
@@ -307,6 +329,8 @@ function parseTextList(text) {
     const line = raw.trim();
     if (!line) continue;
     const low = line.toLowerCase();
+    const zm = line.match(/^zona\s*:\s*(.+)$/i);
+    if (zm) { result.zone = zm[1].trim(); continue; }
     if (/(^|\s)(me faltan|i need|faltan)(\s|$)/.test(low)) { mode = 'faltan'; continue; }
     if (/(^|\s)(repetidas|swaps|repes)(\s|$)/.test(low)) { mode = 'repetidas'; continue; }
 
@@ -358,7 +382,7 @@ function parseForImport(text) {
   if (token) {
     try {
       const obj = JSON.parse(b64DecodeUnicode(token));
-      if (obj && obj.d) return { kind: 'snapshot', name: obj.n || '', contact: obj.c || '', album: obj.a || '', counts: obj.d };
+      if (obj && obj.d) return { kind: 'snapshot', name: obj.n || '', contact: obj.c || '', zone: obj.z || '', album: obj.a || '', counts: obj.d };
     } catch (e) { /* seguimos */ }
   }
 
@@ -371,6 +395,7 @@ function parseForImport(text) {
           kind: 'snapshot',
           name: (obj.profile && obj.profile.name) || '',
           contact: (obj.profile && obj.profile.contact) || '',
+          zone: (obj.profile && obj.profile.zone) || '',
           album: obj.album || '',
           counts: obj.counts,
         };
@@ -380,7 +405,7 @@ function parseForImport(text) {
 
   // Lista de texto (Me faltan / Repetidas)
   const list = parseTextList(text);
-  if (list) return { kind: 'textlist', name: list.name, contact: list.contact, album: list.album, counts: list.counts };
+  if (list) return { kind: 'textlist', name: list.name, contact: list.contact, zone: list.zone, album: list.album, counts: list.counts };
   return null;
 }
 
@@ -510,17 +535,24 @@ function groupBySection(items) {
   return Array.from(map.values());
 }
 
+function sameZone(a, b) {
+  a = (a || '').trim(); b = (b || '').trim();
+  return !!a && !!b && a.toLowerCase() === b.toLowerCase();
+}
+
 function renderMatches(other) {
   const root = $('#match-root');
   const { give, get } = computeTrades(other);
   const who = other.name ? other.name : 'la otra persona';
+  rememberZone(other.zone);
 
   let html = '';
 
-  if (other.name || other.contact) {
+  if (other.name || other.contact || other.zone) {
     html += `<div class="contact-card">
-      <div class="who">👤 ${escapeHtml(other.name || 'Sin nombre')}</div>
+      <div class="who">👤 ${escapeHtml(other.name || 'Sin nombre')}${sameZone(profile.zone, other.zone) ? ' <span class="tag zone">📍 Misma zona</span>' : ''}</div>
       ${other.contact ? `<div class="ct">Contacto: ${linkifyContact(other.contact)}</div>` : ''}
+      ${other.zone ? `<div class="ct">Zona: ${escapeHtml(other.zone)}</div>` : ''}
       ${other.album ? `<div class="ct">Álbum: ${escapeHtml(other.album)}</div>` : ''}
     </div>`;
   }
@@ -658,15 +690,15 @@ async function publishMine() {
   // quedan visibles para toda la comunidad. Ver legal.html.
   if (!load(PUB_CONSENT_KEY, false)) {
     const ok = confirm(
-      'Al publicar, tu nombre y tu contacto quedan VISIBLES para cualquier persona ' +
-      'que abra la app (muro de Comunidad).\n\n' +
+      'Al publicar, tu nombre, tu contacto y tu zona quedan VISIBLES para cualquier ' +
+      'persona que abra la app (muro de Comunidad).\n\n' +
       'Publicá solo un contacto que no te moleste hacer público.\n\n' +
       '¿Querés publicar tu lista?'
     );
     if (!ok) return;
     save(PUB_CONSENT_KEY, true);
   }
-  const payload = { name: profile.name || '', contact: profile.contact || '', album: ALBUM_NAME, data: counts, stats: stats() };
+  const payload = { name: profile.name || '', contact: profile.contact || '', zone: profile.zone || '', album: ALBUM_NAME, data: counts, stats: stats() };
   const pub = load(PUBLISH_KEY, null);
   try {
     let res;
@@ -705,6 +737,21 @@ async function unpublishMine() {
   } catch { toast('No se pudo quitar'); }
 }
 
+// Filtro de zona del muro de Comunidad ('' = todas). Se arma con las zonas
+// que aparecen entre las publicaciones, para poder hacer match con gente cerca.
+let communityZoneFilter = '';
+
+function renderCommunityZoneFilter(rows) {
+  const sel = $('#community-zone-filter');
+  if (!sel) return;
+  const zonesHere = Array.from(new Set(rows.map(r => (r.zone || '').trim()).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  if (!zonesHere.some(z => z.toLowerCase() === communityZoneFilter.toLowerCase())) communityZoneFilter = '';
+  sel.innerHTML = '<option value="">Todas las zonas</option>' +
+    zonesHere.map(z => `<option value="${escapeHtml(z)}">${escapeHtml(z)}</option>`).join('');
+  sel.value = communityZoneFilter;
+}
+
 async function loadCommunity() {
   const listEl = $('#community-list');
   listEl.innerHTML = '<div class="empty">Cargando…</div>';
@@ -714,15 +761,26 @@ async function loadCommunity() {
 
   const pub = load(PUBLISH_KEY, null);
   const others = rows.filter(r => !(pub && r.id === pub.id));
+  others.forEach(r => rememberZone(r.zone));
+  renderCommunityZoneFilter(others);
+
   if (!others.length) {
     listEl.innerHTML = '<div class="empty">Todavía no hay otras listas publicadas.<br>¡Publicá la tuya y avisá a tus conocidos! 🙌</div>';
     return;
   }
 
+  const byZone = communityZoneFilter
+    ? others.filter(r => (r.zone || '').toLowerCase() === communityZoneFilter.toLowerCase())
+    : others;
+  if (!byZone.length) {
+    listEl.innerHTML = '<div class="empty">Nadie publicó su lista en esa zona todavía.<br>Probá con "Todas las zonas".</div>';
+    return;
+  }
+
   // Calculamos automáticamente el potencial de cambio con cada persona.
   // swaps = min(le das, te da) → cantidad de cambios figu-por-figu posibles.
-  const ranked = others.map(r => {
-    const other = { name: r.name, contact: r.contact, album: r.album, counts: r.data };
+  const ranked = byZone.map(r => {
+    const other = { name: r.name, contact: r.contact, zone: r.zone, album: r.album, counts: r.data };
     const { give, get } = computeTrades(other);
     return { r, other, give: give.length, get: get.length, swaps: Math.min(give.length, get.length) };
   }).sort((a, b) =>
@@ -741,11 +799,13 @@ async function loadCommunity() {
   const summary = `<div class="community-summary">🔄 Podés hacer <b>${totalSwaps}</b> cambio(s) con <b>${withSwaps.length}</b> persona(s).</div>`;
 
   listEl.innerHTML = summary + withSwaps.map(({ r, give, get, swaps }) => {
+    const mine = sameZone(profile.zone, r.zone);
     return `<div class="match-block get" style="cursor:pointer" data-id="${r.id}">
-      <h3>👤 ${escapeHtml(r.name || 'Sin nombre')} <span class="tag get">🔄 ${swaps} cambio${swaps > 1 ? 's' : ''}</span></h3>
+      <h3>👤 ${escapeHtml(r.name || 'Sin nombre')} <span class="tag get">🔄 ${swaps} cambio${swaps > 1 ? 's' : ''}</span>${mine ? ' <span class="tag zone">📍 Misma zona</span>' : ''}</h3>
       <div class="ct" style="font-size:.82rem;margin-bottom:4px">
         📤 Le das <b>${give}</b> que necesita · 📥 Te da <b>${get}</b> que te falta
       </div>
+      ${r.zone ? `<div class="ct" style="font-size:.78rem">📍 ${escapeHtml(r.zone)}</div>` : ''}
       ${r.contact ? `<div class="ct" style="font-size:.82rem">📇 ${linkifyContact(r.contact)}</div>` : '<div class="ct" style="font-size:.78rem;color:var(--muted)">Sin contacto cargado</div>'}
       <div class="ct" style="color:var(--muted);font-size:.75rem;margin-top:6px">Tocá para ver qué figuritas son →</div>
     </div>`;
@@ -823,6 +883,9 @@ function renderTelemetry(t) {
   const albums = (t.albums || []).map(a =>
     `<div class="tele-row"><span>${escapeHtml(a.name)}</span><b>${a.count}</b></div>`).join('')
     || '<div class="empty" style="padding:12px">Sin listas publicadas todavía.</div>';
+  const zonesT = (t.zones || []).map(z =>
+    `<div class="tele-row"><span>${escapeHtml(z.name)}</span><b>${z.count}</b></div>`).join('')
+    || '<div class="empty" style="padding:12px">Nadie cargó zona todavía.</div>';
   const spare = (t.topSpare || []).map(s =>
     `<div class="tele-row"><span>${escapeHtml(s.key)}</span><b>×${s.count}</b></div>`).join('')
     || '<div class="empty" style="padding:12px">Nadie cargó repetidas todavía.</div>';
@@ -839,6 +902,7 @@ function renderTelemetry(t) {
       <div class="tele-tile"><div class="tele-num">${pct}%</div><div class="tele-lbl">Completado promedio</div></div>
     </div>
     <div class="tele-sec"><h3>Álbumes</h3>${albums}</div>
+    <div class="tele-sec"><h3>Zonas</h3>${zonesT}</div>
     <div class="tele-sec"><h3>Top repes en circulación</h3>${spare}</div>
     <div class="tele-sec">
       <h3>Publicaciones · borrar</h3>
@@ -877,7 +941,7 @@ async function loadAdminCollections() {
 
   el.innerHTML = rows.map(r => {
     const s = r.stats || {};
-    const meta = [r.contact, r.album].filter(Boolean).map(escapeHtml).join(' · ');
+    const meta = [r.contact, r.zone, r.album].filter(Boolean).map(escapeHtml).join(' · ');
     const nums = (s.have != null) ? `${num(s.have)} pegadas · ${num(s.repe)} repes` : '';
     return `<div class="adm-row">
       <div class="adm-info">
@@ -1044,6 +1108,9 @@ function init() {
   // Perfil
   $('#profile-name').value = profile.name || '';
   $('#profile-contact').value = profile.contact || '';
+  $('#profile-zone').value = profile.zone || '';
+  renderZoneOptions();
+  rememberZone(profile.zone);
   // Filtro / search restaurados
   $('#search').value = ui.search || '';
   $$('.chip-filter').forEach(c => c.classList.toggle('active', c.dataset.filter === (ui.filter || 'all')));
@@ -1122,7 +1189,13 @@ function init() {
       try {
         const obj = JSON.parse(reader.result);
         if (obj.counts) { counts = obj.counts; persist(); }
-        if (obj.profile) { profile = obj.profile; save(PROFILE_KEY, profile); $('#profile-name').value = profile.name||''; $('#profile-contact').value = profile.contact||''; }
+        if (obj.profile) {
+          profile = obj.profile; save(PROFILE_KEY, profile);
+          $('#profile-name').value = profile.name || '';
+          $('#profile-contact').value = profile.contact || '';
+          $('#profile-zone').value = profile.zone || '';
+          rememberZone(profile.zone);
+        }
         renderProgress(); renderAlbum();
         toast('✅ Respaldo restaurado', true);
       } catch { toast('Archivo inválido'); }
@@ -1168,7 +1241,9 @@ function init() {
   $('#save-profile').addEventListener('click', () => {
     profile.name = $('#profile-name').value.trim();
     profile.contact = $('#profile-contact').value.trim();
+    profile.zone = $('#profile-zone').value.trim();
     save(PROFILE_KEY, profile);
+    rememberZone(profile.zone);
     toast('✅ Datos guardados', true);
   });
 
@@ -1184,6 +1259,10 @@ function init() {
     $('#publish-btn').addEventListener('click', publishMine);
     $('#refresh-community').addEventListener('click', loadCommunity);
     $('#unpublish-btn').addEventListener('click', unpublishMine);
+    $('#community-zone-filter').addEventListener('change', e => {
+      communityZoneFilter = e.target.value;
+      loadCommunity();
+    });
     apiHealth().then(ok => {
       if (!ok) return;
       $('#community-panel').style.display = '';

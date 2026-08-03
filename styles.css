@@ -131,7 +131,7 @@ header.top {
 .panel p.hint { margin: 0 0 14px; color: var(--muted); font-size: .84rem; line-height: 1.45; }
 .field { margin-bottom: 12px; }
 .field label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
-.field input, .field textarea {
+.field input, .field textarea, .field select {
   width: 100%; padding: 11px 12px; border-radius: 10px; background: var(--bg-soft);
   border: 1px solid var(--line); color: var(--text); font-size: .9rem; font-family: inherit;
 }
@@ -155,6 +155,7 @@ pre.export {
 .match-block .tag { font-size: .7rem; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
 .tag.give { background: var(--green-d); color: #b6f3c6; }
 .tag.get { background: #14233f; color: #a9c7ff; }
+.tag.zone { background: var(--gold-d); color: #ffe0a3; }
 .match-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .match-item { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; font-size: .8rem; }
 .match-item b { color: var(--text); }
