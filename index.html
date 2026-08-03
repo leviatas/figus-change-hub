@@ -177,6 +177,11 @@
           <label>Contacto (WhatsApp, Telegram, mail… lo que quieras)</label>
           <input id="profile-contact" type="text" placeholder="Ej: @edu · o un teléfono · o un mail" />
         </div>
+        <div class="field">
+          <label>Zona (para hacer match con gente cerca tuyo)</label>
+          <input id="profile-zone" type="text" list="zona-list" placeholder="Ej: CABA, Zona Norte, Rosario…" />
+          <datalist id="zona-list"></datalist>
+        </div>
         <button class="btn primary" id="save-profile">Guardar</button>
       </div>
 
@@ -197,7 +202,13 @@
           <button class="btn" id="refresh-community">↻ Actualizar</button>
           <button class="btn ghost" id="unpublish-btn" style="display:none">Quitar mi publicación</button>
         </div>
-        <p class="hint" style="margin:10px 0 0; font-size:.78rem">⚠️ Al publicar, tu nombre y contacto quedan <b>visibles para toda la comunidad</b>. Más info en <a href="legal.html">Privacidad</a>.</p>
+        <div class="field" style="margin-top:12px">
+          <label>Filtrar por zona</label>
+          <select id="community-zone-filter">
+            <option value="">Todas las zonas</option>
+          </select>
+        </div>
+        <p class="hint" style="margin:10px 0 0; font-size:.78rem">⚠️ Al publicar, tu nombre, contacto y zona quedan <b>visibles para toda la comunidad</b>. Más info en <a href="legal.html">Privacidad</a>.</p>
         <div id="community-list" style="margin-top:12px"></div>
       </div>
 
@@ -209,7 +220,7 @@
       <!-- Versión de la app (fuente única): escrita a mano acá. Al publicar
            cambios, subí este número (semver). app.js la lee del DOM para
            versionar el service worker; no hay ningún archivo de versión aparte. -->
-      <div class="credit"><a href="legal.html">Términos y privacidad</a> · Hecho con ❤️ por Edu · <a href="https://dev.leviatas.com" target="_blank" rel="noopener">dev.leviatas.com</a> · <span class="ver" id="app-version">v1.4.2</span></div>
+      <div class="credit"><a href="legal.html">Términos y privacidad</a> · Hecho con ❤️ por Edu · <a href="https://dev.leviatas.com" target="_blank" rel="noopener">dev.leviatas.com</a> · <span class="ver" id="app-version">v1.5.0</span></div>
     </footer>
   </div>
 
