@@ -737,19 +737,32 @@ async function unpublishMine() {
   } catch { toast('No se pudo quitar'); }
 }
 
-// Filtro de zona del muro de Comunidad ('' = todas). Se arma con las zonas
-// que aparecen entre las publicaciones, para poder hacer match con gente cerca.
+// Filtro de zona del muro de Comunidad ('' = todas). Arranca en TU zona (si la
+// cargaste) para ver de entrada con quién podés cambiar cerca tuyo; una vez que
+// la persona lo toca a mano, respetamos su elección en los refrescos siguientes.
 let communityZoneFilter = '';
+let communityZoneFilterUserSet = false;
 
 function renderCommunityZoneFilter(rows) {
   const sel = $('#community-zone-filter');
   if (!sel) return;
-  const zonesHere = Array.from(new Set(rows.map(r => (r.zone || '').trim()).filter(Boolean)))
-    .sort((a, b) => a.localeCompare(b, 'es'));
-  if (!zonesHere.some(z => z.toLowerCase() === communityZoneFilter.toLowerCase())) communityZoneFilter = '';
+  if (!communityZoneFilterUserSet) communityZoneFilter = profile.zone || '';
+
+  // Mapa case-insensitive: si nadie más está en tu zona todavía, la agregamos
+  // igual como opción para que el filtro no "desaparezca" al no encontrar coincidencias.
+  const seen = new Map();
+  rows.forEach(r => {
+    const z = (r.zone || '').trim();
+    if (z && !seen.has(z.toLowerCase())) seen.set(z.toLowerCase(), z);
+  });
+  if (communityZoneFilter && !seen.has(communityZoneFilter.toLowerCase())) {
+    seen.set(communityZoneFilter.toLowerCase(), communityZoneFilter);
+  }
+  const zonesHere = Array.from(seen.values()).sort((a, b) => a.localeCompare(b, 'es'));
+
   sel.innerHTML = '<option value="">Todas las zonas</option>' +
     zonesHere.map(z => `<option value="${escapeHtml(z)}">${escapeHtml(z)}</option>`).join('');
-  sel.value = communityZoneFilter;
+  sel.value = communityZoneFilter || '';
 }
 
 async function loadCommunity() {
@@ -1261,6 +1274,7 @@ function init() {
     $('#unpublish-btn').addEventListener('click', unpublishMine);
     $('#community-zone-filter').addEventListener('change', e => {
       communityZoneFilter = e.target.value;
+      communityZoneFilterUserSet = true;
       loadCommunity();
     });
     apiHealth().then(ok => {
